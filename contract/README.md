@@ -4,32 +4,36 @@ This folder holds the Solidity smart contract for the Crowd Funding learning
 project (see `../feature.md` for the full feature list). Plain Solidity is
 used here, no OpenZeppelin, so the basics can be learned from scratch.
 
-### Project Structure (planned)
+### Project Structure
 
 ```
 contract/
 ├── src/
-│   └── CrowdFunding.sol      # Main contract: campaigns, contributions, withdraw, refund
+│   ├── CrowdFunding.sol       # Main contract: campaigns, contributions, withdraw, refund
+│   └── CrowdFundingTypes.sol  # Shared Campaign struct and CampaignStatus enum
 ├── script/
-│   └── CrowdFunding.s.sol    # Script to deploy CrowdFunding.sol
+│   └── CrowdFunding.s.sol     # Script to deploy CrowdFunding.sol
 ├── test/
-│   └── CrowdFunding.t.sol    # Unit tests for CrowdFunding.sol
+│   └── CrowdFunding.t.sol     # Unit tests for CrowdFunding.sol
 ├── lib/
-│   └── forge-std/            # Foundry standard library (test helpers, cheatcodes)
-├── foundry.toml               # Foundry project configuration
+│   └── forge-std/             # Foundry standard library (test helpers, cheatcodes)
+├── foundry.toml                # Foundry project configuration
 └── README.md
 ```
 
-These files do not exist yet, they will be added as we build the contract
-step by step. This section will be updated if the structure changes (for
-example, splitting each campaign into its own contract).
+This section will be updated if the structure changes (for example, splitting
+each campaign into its own contract).
 
-### What We Will Write
+### What Each File Has
+
+**`src/CrowdFundingTypes.sol`**
+- The `Campaign` struct (owner, title, description, goal, deadline, amount
+  raised, withdrawn) and the `CampaignStatus` enum (Active, Successful,
+  Failed), shared by the contract and its tests.
 
 **`src/CrowdFunding.sol`**
-- A `Campaign` struct to hold owner, title, description, goal, deadline,
-  amount raised, and status.
-- Storage to keep track of all campaigns (for example, an array or mapping).
+- Storage to keep track of all campaigns and how much each address
+  contributed.
 - `createCampaign(...)` to add a new campaign.
 - `contribute(campaignId)` to let a user send ETH to a campaign and record
   how much each address contributed.
@@ -37,8 +41,8 @@ example, splitting each campaign into its own contract).
   goal is reached.
 - `refund(campaignId)` for contributors to get their money back if the goal
   was not reached by the deadline.
-- View functions like `getCampaign(campaignId)` and `getCampaigns()` to read
-  campaign data.
+- View functions like `getCampaign(campaignId)`, `getCampaigns()`, and
+  `getCampaignStatus(campaignId)` to read campaign data.
 - Events such as `CampaignCreated` and `ContributionMade` so the backend can
   listen for changes.
 
@@ -100,11 +104,16 @@ $ anvil
 
 ### Deploy
 
+Copy `.env.example` to `.env` and fill in `RPC_URL` and `PRIVATE_KEY`, then run:
+
 ```shell
-$ forge script script/CrowdFunding.s.sol:CrowdFundingScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+$ forge script script/CrowdFunding.s.sol:CrowdFundingScript --rpc-url anvil --broadcast
 ```
 
-(This script does not exist yet, it will be added later.)
+`anvil` here is an alias defined in `foundry.toml` under `[rpc_endpoints]`, pointing
+at the `RPC_URL` from `.env`. The private key is read inside the script itself
+via `vm.envUint("PRIVATE_KEY")`, so it never needs to be typed on the command
+line.
 
 ### Cast
 
