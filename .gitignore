@@ -1,0 +1,6 @@
+.env
+
+# Foundry (contract/)
+contract/cache/
+contract/out/
+contract/broadcast/
