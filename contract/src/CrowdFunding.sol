@@ -56,6 +56,7 @@ contract CrowdFunding {
     function contribute(uint256 campaignId) external payable campaignExists(campaignId) {
         Campaign storage campaign = campaigns[campaignId];
 
+        // forge-lint: disable-next-line(block-timestamp)
         if (block.timestamp >= campaign.deadline) revert CampaignHasEnded();
         if (msg.value == 0) revert ContributionMustBeGreaterThanZero();
 
@@ -84,6 +85,7 @@ contract CrowdFunding {
     function refund(uint256 campaignId) external campaignExists(campaignId) {
         Campaign storage campaign = campaigns[campaignId];
 
+        // forge-lint: disable-next-line(block-timestamp)
         if (block.timestamp < campaign.deadline) revert CampaignStillActive();
         if (campaign.amountRaised >= campaign.goal) revert GoalAlreadyReached();
 
@@ -112,6 +114,7 @@ contract CrowdFunding {
         if (campaign.amountRaised >= campaign.goal) {
             return CampaignStatus.Successful;
         }
+        // forge-lint: disable-next-line(block-timestamp)
         if (block.timestamp >= campaign.deadline) {
             return CampaignStatus.Failed;
         }
