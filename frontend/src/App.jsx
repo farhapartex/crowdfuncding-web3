@@ -21,6 +21,7 @@ function App() {
   const [error, setError] = useState(null)
   const [isCreating, setIsCreating] = useState(false)
   const [isContributing, setIsContributing] = useState(false)
+  const [isWithdrawing, setIsWithdrawing] = useState(false)
 
   async function refreshCampaigns() {
     const result = await fetchCampaigns()
@@ -93,6 +94,25 @@ function App() {
     }
   }
 
+  async function handleWithdraw(campaignId) {
+    setError(null)
+    setIsWithdrawing(true)
+
+    try {
+      const signer = await provider.getSigner()
+      const crowdFunding = getCrowdFundingContract(signer)
+
+      const tx = await crowdFunding.withdraw(campaignId)
+      await tx.wait()
+
+      await refreshCampaigns()
+    } catch (err) {
+      setError(err.shortMessage || err.message)
+    } finally {
+      setIsWithdrawing(false)
+    }
+  }
+
   const selectedCampaign = campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null
 
   return (
@@ -125,8 +145,11 @@ function App() {
       {selectedCampaign && (
         <CampaignDetailsModal
           campaign={selectedCampaign}
+          account={account}
           onContribute={handleContribute}
           isContributing={isContributing}
+          onWithdraw={handleWithdraw}
+          isWithdrawing={isWithdrawing}
           onClose={() => setSelectedCampaignId(null)}
         />
       )}

@@ -268,7 +268,8 @@ button:disabled {
   color: var(--text-h);
 }
 
-.contribute-form {
+.contribute-form,
+.withdraw-section {
   display: flex;
   flex-direction: column;
   gap: 10px;

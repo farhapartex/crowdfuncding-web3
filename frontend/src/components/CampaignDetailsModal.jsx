@@ -1,9 +1,12 @@
 import Modal from './Modal'
 import ContributeForm from './ContributeForm'
+import WithdrawButton from './WithdrawButton'
 import { shortenAddress, formatEth, formatDate } from '../utils/format'
 
-function CampaignDetailsModal({ campaign, onContribute, isContributing, onClose }) {
+function CampaignDetailsModal({ campaign, account, onContribute, isContributing, onWithdraw, isWithdrawing, onClose }) {
   const canContribute = Date.now() / 1000 < Number(campaign.deadline)
+  const isOwner = account?.toLowerCase() === campaign.owner.toLowerCase()
+  const canWithdraw = isOwner && campaign.status === 'Successful' && !campaign.withdrawn
 
   return (
     <Modal title={campaign.title} onClose={onClose}>
@@ -45,6 +48,10 @@ function CampaignDetailsModal({ campaign, onContribute, isContributing, onClose 
           onContribute={(amountEth) => onContribute(campaign.id, amountEth)}
           isContributing={isContributing}
         />
+      )}
+
+      {canWithdraw && (
+        <WithdrawButton onWithdraw={() => onWithdraw(campaign.id)} isWithdrawing={isWithdrawing} />
       )}
     </Modal>
   )
