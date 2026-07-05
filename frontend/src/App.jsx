@@ -1,14 +1,30 @@
 import { useState } from 'react'
-import { BrowserProvider, Contract } from 'ethers'
-import crowdFundingAbi from './contract/CrowdFundingAbi.json'
+import { BrowserProvider, parseEther } from 'ethers'
+import { getCrowdFundingContract } from './lib/crowdFundingContract'
+import { fetchCampaigns } from './lib/api'
+import ConnectWalletButton from './components/ConnectWalletButton'
+import SummaryCard from './components/SummaryCard'
+import CreateCampaignForm from './components/CreateCampaignForm'
+import CampaignTable from './components/CampaignTable'
+import Modal from './components/Modal'
+import CampaignDetailsModal from './components/CampaignDetailsModal'
 import './App.css'
 
-const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS
+const SECONDS_PER_DAY = 24 * 60 * 60
 
 function App() {
+  const [provider, setProvider] = useState(null)
   const [account, setAccount] = useState(null)
-  const [campaignCount, setCampaignCount] = useState(null)
+  const [campaigns, setCampaigns] = useState([])
+  const [selectedCampaignId, setSelectedCampaignId] = useState(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
   const [error, setError] = useState(null)
+  const [isCreating, setIsCreating] = useState(false)
+
+  async function refreshCampaigns() {
+    const result = await fetchCampaigns()
+    setCampaigns(result)
+  }
 
   async function connectWallet() {
     if (!window.ethereum) {
@@ -17,34 +33,75 @@ function App() {
     }
 
     try {
-      const provider = new BrowserProvider(window.ethereum)
-      const accounts = await provider.send('eth_requestAccounts', [])
+      const browserProvider = new BrowserProvider(window.ethereum)
+      const accounts = await browserProvider.send('eth_requestAccounts', [])
+
+      setProvider(browserProvider)
       setAccount(accounts[0])
-
-      const crowdFunding = new Contract(CONTRACT_ADDRESS, crowdFundingAbi, provider)
-      const count = await crowdFunding.campaignCount()
-      setCampaignCount(count.toString())
-
       setError(null)
+
+      await refreshCampaigns()
     } catch (err) {
       setError(err.message)
     }
   }
 
+  async function handleCreateCampaign({ title, description, goalEth, durationDays }) {
+    setError(null)
+    setIsCreating(true)
+
+    try {
+      const signer = await provider.getSigner()
+      const crowdFunding = getCrowdFundingContract(signer)
+
+      const goalInWei = parseEther(goalEth)
+      const durationInSeconds = Number(durationDays) * SECONDS_PER_DAY
+
+      const tx = await crowdFunding.createCampaign(title, description, goalInWei, durationInSeconds)
+      await tx.wait()
+
+      await refreshCampaigns()
+      setShowCreateModal(false)
+    } catch (err) {
+      setError(err.shortMessage || err.message)
+      throw err
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const selectedCampaign = campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null
+
   return (
-    <div>
+    <div className="app">
       <h1>Crowd Funding</h1>
 
       {account ? (
-        <div>
-          <p>Connected account: {account}</p>
-          <p>Campaign count: {campaignCount}</p>
+        <div className="dashboard">
+          <SummaryCard account={account} campaignCount={campaigns.length} />
+
+          <div className="section-header">
+            <h2>Campaigns</h2>
+            <button onClick={() => setShowCreateModal(true)}>Create Campaign</button>
+          </div>
+
+          <CampaignTable campaigns={campaigns} onSelect={setSelectedCampaignId} />
         </div>
       ) : (
-        <button onClick={connectWallet}>Connect Wallet</button>
+        <ConnectWalletButton onConnect={connectWallet} />
       )}
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {error && <p className="error">{error}</p>}
+
+      {showCreateModal && (
+        <Modal title="Create a Campaign" onClose={() => setShowCreateModal(false)}>
+          <CreateCampaignForm onCreate={handleCreateCampaign} isCreating={isCreating} />
+        </Modal>
+      )}
+
+      {selectedCampaign && (
+        <CampaignDetailsModal campaign={selectedCampaign} onClose={() => setSelectedCampaignId(null)} />
+      )}
     </div>
   )
 }
