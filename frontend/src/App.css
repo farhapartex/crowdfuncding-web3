@@ -267,3 +267,12 @@ button:disabled {
   font-size: 14px;
   color: var(--text-h);
 }
+
+.contribute-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}

@@ -1,7 +1,10 @@
 import Modal from './Modal'
+import ContributeForm from './ContributeForm'
 import { shortenAddress, formatEth, formatDate } from '../utils/format'
 
-function CampaignDetailsModal({ campaign, onClose }) {
+function CampaignDetailsModal({ campaign, onContribute, isContributing, onClose }) {
+  const canContribute = Date.now() / 1000 < Number(campaign.deadline)
+
   return (
     <Modal title={campaign.title} onClose={onClose}>
       <p className="campaign-description">{campaign.description}</p>
@@ -36,6 +39,13 @@ function CampaignDetailsModal({ campaign, onClose }) {
           <dd>{campaign.withdrawn ? 'Yes' : 'No'}</dd>
         </div>
       </dl>
+
+      {canContribute && (
+        <ContributeForm
+          onContribute={(amountEth) => onContribute(campaign.id, amountEth)}
+          isContributing={isContributing}
+        />
+      )}
     </Modal>
   )
 }

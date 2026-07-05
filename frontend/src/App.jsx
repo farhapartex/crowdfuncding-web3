@@ -20,6 +20,7 @@ function App() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [error, setError] = useState(null)
   const [isCreating, setIsCreating] = useState(false)
+  const [isContributing, setIsContributing] = useState(false)
 
   async function refreshCampaigns() {
     const result = await fetchCampaigns()
@@ -70,6 +71,28 @@ function App() {
     }
   }
 
+  async function handleContribute(campaignId, amountEth) {
+    setError(null)
+    setIsContributing(true)
+
+    try {
+      const signer = await provider.getSigner()
+      const crowdFunding = getCrowdFundingContract(signer)
+
+      const amountInWei = parseEther(amountEth)
+
+      const tx = await crowdFunding.contribute(campaignId, { value: amountInWei })
+      await tx.wait()
+
+      await refreshCampaigns()
+    } catch (err) {
+      setError(err.shortMessage || err.message)
+      throw err
+    } finally {
+      setIsContributing(false)
+    }
+  }
+
   const selectedCampaign = campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null
 
   return (
@@ -100,7 +123,12 @@ function App() {
       )}
 
       {selectedCampaign && (
-        <CampaignDetailsModal campaign={selectedCampaign} onClose={() => setSelectedCampaignId(null)} />
+        <CampaignDetailsModal
+          campaign={selectedCampaign}
+          onContribute={handleContribute}
+          isContributing={isContributing}
+          onClose={() => setSelectedCampaignId(null)}
+        />
       )}
     </div>
   )
