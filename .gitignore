@@ -4,3 +4,6 @@
 contract/cache/
 contract/out/
 contract/broadcast/
+
+# Go (backend/)
+backend/crowdfunding-backend
