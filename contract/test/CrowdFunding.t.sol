@@ -276,15 +276,44 @@ contract CrowdFundingTest is Test {
         assertEq(uint256(crowdFunding.getCampaignStatus(campaignId)), uint256(CampaignStatus.Failed));
     }
 
-    function test_GetCampaigns_ReturnsAllCreatedCampaigns() public {
+    function test_GetCampaigns_ReturnsAllCreatedCampaignsWithinOnePage() public {
         _createCampaign(GOAL, DURATION);
         _createCampaign(GOAL * 2, DURATION * 2);
 
-        Campaign[] memory allCampaigns = crowdFunding.getCampaigns();
+        Campaign[] memory page = crowdFunding.getCampaigns(0, 10);
 
-        assertEq(allCampaigns.length, 2);
-        assertEq(allCampaigns[0].goal, GOAL);
-        assertEq(allCampaigns[1].goal, GOAL * 2);
+        assertEq(page.length, 2);
+        assertEq(page[0].goal, GOAL);
+        assertEq(page[1].goal, GOAL * 2);
+    }
+
+    function test_GetCampaigns_ReturnsRequestedSlice() public {
+        _createCampaign(GOAL, DURATION);
+        _createCampaign(GOAL * 2, DURATION * 2);
+        _createCampaign(GOAL * 3, DURATION * 3);
+
+        Campaign[] memory page = crowdFunding.getCampaigns(1, 1);
+
+        assertEq(page.length, 1);
+        assertEq(page[0].goal, GOAL * 2);
+    }
+
+    function test_GetCampaigns_ClampsLimitToMaxPageSize() public {
+        for (uint256 i = 0; i < crowdFunding.MAX_PAGE_SIZE() + 5; i++) {
+            _createCampaign(GOAL, DURATION);
+        }
+
+        Campaign[] memory page = crowdFunding.getCampaigns(0, crowdFunding.MAX_PAGE_SIZE() + 5);
+
+        assertEq(page.length, crowdFunding.MAX_PAGE_SIZE());
+    }
+
+    function test_GetCampaigns_ReturnsEmptyWhenOffsetBeyondLength() public {
+        _createCampaign(GOAL, DURATION);
+
+        Campaign[] memory page = crowdFunding.getCampaigns(5, 10);
+
+        assertEq(page.length, 0);
     }
 
     function test_GetCampaign_RevertsWhenCampaignDoesNotExist() public {

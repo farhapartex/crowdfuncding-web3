@@ -91,7 +91,19 @@ func main() {
 	})
 
 	router.GET("/campaigns", func(c *gin.Context) {
-		campaigns, err := crowdFunding.GetCampaigns(nil)
+		offset, err := strconv.ParseUint(c.DefaultQuery("offset", "0"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid offset"})
+			return
+		}
+
+		limit, err := strconv.ParseUint(c.DefaultQuery("limit", "20"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit"})
+			return
+		}
+
+		campaigns, err := crowdFunding.GetCampaigns(nil, new(big.Int).SetUint64(offset), new(big.Int).SetUint64(limit))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -99,7 +111,7 @@ func main() {
 
 		response := make([]CampaignResponse, len(campaigns))
 		for i, campaign := range campaigns {
-			response[i] = toCampaignResponse(uint64(i), campaign)
+			response[i] = toCampaignResponse(offset+uint64(i), campaign)
 		}
 
 		c.JSON(http.StatusOK, response)

@@ -4,6 +4,8 @@ pragma solidity ^0.8.24;
 import {Campaign, CampaignStatus} from "./CrowdFundingTypes.sol";
 
 contract CrowdFunding {
+    uint256 public constant MAX_PAGE_SIZE = 50;
+
     Campaign[] public campaigns;
     mapping(uint256 => mapping(address => uint256)) public contributions;
 
@@ -104,8 +106,24 @@ contract CrowdFunding {
         return campaigns[campaignId];
     }
 
-    function getCampaigns() external view returns (Campaign[] memory) {
-        return campaigns;
+    function getCampaigns(uint256 offset, uint256 limit) external view returns (Campaign[] memory) {
+        uint256 totalCampaigns = campaigns.length;
+        if (offset >= totalCampaigns) {
+            return new Campaign[](0);
+        }
+
+        uint256 pageSize = limit < MAX_PAGE_SIZE ? limit : MAX_PAGE_SIZE;
+        uint256 remaining = totalCampaigns - offset;
+        if (pageSize > remaining) {
+            pageSize = remaining;
+        }
+
+        Campaign[] memory page = new Campaign[](pageSize);
+        for (uint256 i = 0; i < pageSize; i++) {
+            page[i] = campaigns[offset + i];
+        }
+
+        return page;
     }
 
     function getCampaignStatus(uint256 campaignId) external view campaignExists(campaignId) returns (CampaignStatus) {
