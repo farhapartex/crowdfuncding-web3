@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { parseEther } from 'ethers'
 import { getCrowdFundingContract } from '../lib/crowdFundingContract'
 import { fetchCampaigns } from '../lib/api'
@@ -13,6 +14,7 @@ const SECONDS_PER_DAY = 24 * 60 * 60
 const PAGE_SIZE = 10
 
 function CampaignsPage({ account, provider, onConnectWallet, setError, showToast }) {
+  const navigate = useNavigate()
   const [campaigns, setCampaigns] = useState([])
   const [totalCampaigns, setTotalCampaigns] = useState(0)
   const [offset, setOffset] = useState(0)
@@ -20,7 +22,6 @@ function CampaignsPage({ account, provider, onConnectWallet, setError, showToast
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [isContributing, setIsContributing] = useState(false)
-  const [isWithdrawing, setIsWithdrawing] = useState(false)
 
   useEffect(() => {
     refreshCampaigns(0)
@@ -80,22 +81,14 @@ function CampaignsPage({ account, provider, onConnectWallet, setError, showToast
     }
   }
 
-  async function handleWithdraw(campaignId) {
-    setError(null)
-    setIsWithdrawing(true)
+  function handleSelectCampaign(campaignId) {
+    const campaign = campaigns.find((c) => c.id === campaignId)
+    const isOwner = account && campaign && account.toLowerCase() === campaign.owner.toLowerCase()
 
-    try {
-      const signer = await provider.getSigner()
-      const crowdFunding = getCrowdFundingContract(signer)
-
-      const tx = await crowdFunding.withdraw(campaignId)
-      await tx.wait()
-
-      await refreshCampaigns()
-    } catch (err) {
-      setError(err.shortMessage || err.message)
-    } finally {
-      setIsWithdrawing(false)
+    if (isOwner) {
+      navigate(`/campaigns/${campaignId}/manage`)
+    } else {
+      setSelectedCampaignId(campaignId)
     }
   }
 
@@ -114,7 +107,7 @@ function CampaignsPage({ account, provider, onConnectWallet, setError, showToast
         </Button>
       </div>
 
-      <CampaignTable campaigns={campaigns} onSelect={setSelectedCampaignId} />
+      <CampaignTable campaigns={campaigns} onSelect={handleSelectCampaign} />
 
       <Pagination
         offset={offset}
@@ -137,8 +130,6 @@ function CampaignsPage({ account, provider, onConnectWallet, setError, showToast
           onConnectWallet={onConnectWallet}
           onContribute={handleContribute}
           isContributing={isContributing}
-          onWithdraw={handleWithdraw}
-          isWithdrawing={isWithdrawing}
           onClose={() => setSelectedCampaignId(null)}
         />
       )}

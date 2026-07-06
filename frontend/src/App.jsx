@@ -5,6 +5,7 @@ import { fetchSignInMessage, verifySignIn, fetchMe } from './lib/api'
 import Navbar from './components/Navbar'
 import ToastContainer from './components/ToastContainer'
 import CampaignsPage from './pages/CampaignsPage'
+import CampaignManagePage from './pages/CampaignManagePage'
 import AboutPage from './pages/AboutPage'
 import ProfilePage from './pages/ProfilePage'
 
@@ -125,6 +126,17 @@ function App() {
                 account={account}
                 provider={provider}
                 onConnectWallet={connectWallet}
+                setError={setError}
+                showToast={showToast}
+              />
+            }
+          />
+          <Route
+            path="/campaigns/:id/manage"
+            element={
+              <CampaignManagePage
+                provider={provider}
+                account={account}
                 setError={setError}
                 showToast={showToast}
               />

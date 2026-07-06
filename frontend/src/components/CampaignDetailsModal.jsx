@@ -1,22 +1,12 @@
 import { useEffect, useState } from 'react'
 import Modal from './Modal'
 import ContributeForm from './ContributeForm'
-import WithdrawButton from './WithdrawButton'
 import StatusBadge from './ui/StatusBadge'
 import Button from './ui/Button'
 import { shortenAddress, formatEth, formatDate } from '../utils/format'
 import { fetchPublicProfile } from '../lib/api'
 
-function CampaignDetailsModal({
-  campaign,
-  account,
-  onConnectWallet,
-  onContribute,
-  isContributing,
-  onWithdraw,
-  isWithdrawing,
-  onClose,
-}) {
+function CampaignDetailsModal({ campaign, account, onConnectWallet, onContribute, isContributing, onClose }) {
   const [ownerDisplayName, setOwnerDisplayName] = useState('')
 
   useEffect(() => {
@@ -26,8 +16,6 @@ function CampaignDetailsModal({
   }, [campaign.owner])
 
   const canContribute = Date.now() / 1000 < Number(campaign.deadline)
-  const isOwner = account?.toLowerCase() === campaign.owner.toLowerCase()
-  const canWithdraw = isOwner && campaign.status === 'Successful' && !campaign.withdrawn
 
   return (
     <Modal title={campaign.title} onClose={onClose}>
@@ -80,10 +68,6 @@ function CampaignDetailsModal({
             </Button>
           </div>
         ))}
-
-      {canWithdraw && (
-        <WithdrawButton onWithdraw={() => onWithdraw(campaign.id)} isWithdrawing={isWithdrawing} />
-      )}
     </Modal>
   )
 }

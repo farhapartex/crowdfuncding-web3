@@ -103,6 +103,8 @@ func main() {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
+	startContributionIndexer(gormDB, crowdFunding, client)
+
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{
 		AllowAllOrigins: true,
@@ -266,6 +268,37 @@ func main() {
 		}
 
 		c.JSON(http.StatusOK, toCampaignResponse(id, campaign))
+	})
+
+	api.GET("/campaigns/:id/contributors", func(c *gin.Context) {
+		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid campaign id"})
+			return
+		}
+
+		summaries, err := models.GetContributorsForCampaign(gormDB, id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		response := make([]gin.H, len(summaries))
+		for i, summary := range summaries {
+			profile, err := models.GetProfile(gormDB, summary.Contributor)
+			displayName := ""
+			if err == nil {
+				displayName = profile.DisplayName
+			}
+
+			response[i] = gin.H{
+				"address":     summary.Contributor,
+				"displayName": displayName,
+				"amount":      summary.TotalAmount,
+			}
+		}
+
+		c.JSON(http.StatusOK, response)
 	})
 
 	port := os.Getenv("PORT")
