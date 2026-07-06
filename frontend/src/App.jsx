@@ -106,14 +106,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Navbar
-        account={account}
-        sessionAddress={sessionAddress}
-        isSigningIn={isSigningIn}
-        onConnect={connectWallet}
-        onSignIn={handleSignIn}
-        onSignOut={handleSignOut}
-      />
+      <Navbar account={account} onConnect={connectWallet} onSignOut={handleSignOut} />
 
       <main className="mx-auto max-w-5xl px-6 py-8">
         {error && (

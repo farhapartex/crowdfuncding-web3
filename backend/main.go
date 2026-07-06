@@ -69,9 +69,17 @@ func main() {
 	postgresPassword := os.Getenv("POSTGRES_PASSWORD")
 	postgresDB := os.Getenv("POSTGRES_DB")
 	postgresPort := os.Getenv("POSTGRES_PORT")
+	auth0Domain := os.Getenv("AUTH0_APP_DOMAIN")
+	auth0Audience := os.Getenv("AUTH0_AUDIENCE")
 	if rpcURL == "" || contractAddress == "" || jwtSecret == "" ||
-		postgresUser == "" || postgresPassword == "" || postgresDB == "" || postgresPort == "" {
-		log.Fatal("RPC_URL, CONTRACT_ADDRESS, JWT_SECRET, and POSTGRES_* variables must be set")
+		postgresUser == "" || postgresPassword == "" || postgresDB == "" || postgresPort == "" ||
+		auth0Domain == "" || auth0Audience == "" {
+		log.Fatal("RPC_URL, CONTRACT_ADDRESS, JWT_SECRET, POSTGRES_*, and AUTH0_* variables must be set")
+	}
+
+	auth0KeyFunc, err := newAuth0KeyFunc(auth0Domain)
+	if err != nil {
+		log.Fatalf("failed to load auth0 jwks: %v", err)
 	}
 
 	postgresHost := os.Getenv("POSTGRES_HOST")
@@ -206,6 +214,39 @@ func main() {
 		}
 
 		c.JSON(http.StatusOK, profile)
+	})
+
+	api.POST("/auth0/sync", auth0Middleware(auth0KeyFunc, auth0Domain, auth0Audience), func(c *gin.Context) {
+		sub := c.GetString("sub")
+		accessToken := c.GetString("auth0Token")
+
+		email, name, err := fetchAuth0UserInfo(auth0Domain, accessToken)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		user, err := models.UpsertUserFromAuth0(gormDB, sub, email, name)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, user)
+	})
+
+	api.GET("/auth0/me", auth0Middleware(auth0KeyFunc, auth0Domain, auth0Audience), func(c *gin.Context) {
+		user, err := models.GetUser(gormDB, c.GetString("sub"))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if user == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+
+		c.JSON(http.StatusOK, user)
 	})
 
 	api.GET("/profiles/:address", func(c *gin.Context) {

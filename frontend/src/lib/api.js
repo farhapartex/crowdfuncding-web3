@@ -89,6 +89,17 @@ export async function updateMyProfile(token, { displayName, email }) {
   return response.json()
 }
 
+export async function syncAuth0User(accessToken) {
+  const response = await fetch(`${API_V1_URL}/auth0/sync`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to sync user (status ${response.status})`)
+  }
+  return response.json()
+}
+
 export async function fetchPublicProfile(address) {
   const response = await fetch(`${API_V1_URL}/profiles/${address}`)
   if (!response.ok) {

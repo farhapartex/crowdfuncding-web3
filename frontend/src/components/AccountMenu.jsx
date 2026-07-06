@@ -9,7 +9,7 @@ function ProfileIcon() {
   )
 }
 
-function AccountMenu({ sessionAddress, isSigningIn, onSignIn, onSignOut }) {
+function AccountMenu({ onSignOut }) {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef(null)
 
@@ -23,19 +23,6 @@ function AccountMenu({ sessionAddress, isSigningIn, onSignIn, onSignOut }) {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-
-  if (!sessionAddress) {
-    return (
-      <button
-        type="button"
-        onClick={onSignIn}
-        disabled={isSigningIn}
-        className="text-sm font-medium text-indigo-600 hover:text-indigo-500 disabled:opacity-50"
-      >
-        {isSigningIn ? 'Signing in...' : 'Sign Up'}
-      </button>
-    )
-  }
 
   return (
     <div className="relative" ref={menuRef}>

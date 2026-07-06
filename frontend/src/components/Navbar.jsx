@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom'
 import ConnectWalletButton from './ConnectWalletButton'
 import AccountMenu from './AccountMenu'
+import Auth0AccountButton from './Auth0AccountButton'
 
-function Navbar({ account, sessionAddress, isSigningIn, onConnect, onSignIn, onSignOut }) {
+function Navbar({ account, onConnect, onSignOut }) {
   return (
     <nav className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-sm">
       <div className="mx-auto flex h-16 max-w-5xl items-center gap-8 px-6">
@@ -38,14 +39,11 @@ function Navbar({ account, sessionAddress, isSigningIn, onConnect, onSignIn, onS
           </NavLink>
         </div>
 
-        <div className="flex items-center">
+        <div className="flex items-center gap-4">
+          <Auth0AccountButton />
+
           {account ? (
-            <AccountMenu
-              sessionAddress={sessionAddress}
-              isSigningIn={isSigningIn}
-              onSignIn={onSignIn}
-              onSignOut={onSignOut}
-            />
+            <AccountMenu onSignOut={onSignOut} />
           ) : (
             <ConnectWalletButton onConnect={onConnect} />
           )}
