@@ -1,9 +1,28 @@
+import { useEffect, useState } from 'react'
 import Modal from './Modal'
 import ContributeForm from './ContributeForm'
 import WithdrawButton from './WithdrawButton'
 import { shortenAddress, formatEth, formatDate } from '../utils/format'
+import { fetchPublicProfile } from '../lib/api'
 
-function CampaignDetailsModal({ campaign, account, onContribute, isContributing, onWithdraw, isWithdrawing, onClose }) {
+function CampaignDetailsModal({
+  campaign,
+  account,
+  onConnectWallet,
+  onContribute,
+  isContributing,
+  onWithdraw,
+  isWithdrawing,
+  onClose,
+}) {
+  const [ownerDisplayName, setOwnerDisplayName] = useState('')
+
+  useEffect(() => {
+    fetchPublicProfile(campaign.owner)
+      .then(({ displayName }) => setOwnerDisplayName(displayName))
+      .catch(() => setOwnerDisplayName(''))
+  }, [campaign.owner])
+
   const canContribute = Date.now() / 1000 < Number(campaign.deadline)
   const isOwner = account?.toLowerCase() === campaign.owner.toLowerCase()
   const canWithdraw = isOwner && campaign.status === 'Successful' && !campaign.withdrawn
@@ -19,7 +38,7 @@ function CampaignDetailsModal({ campaign, account, onContribute, isContributing,
         </div>
         <div>
           <dt>Owner</dt>
-          <dd className="mono">{shortenAddress(campaign.owner)}</dd>
+          <dd className="mono">{ownerDisplayName || shortenAddress(campaign.owner)}</dd>
         </div>
         <div>
           <dt>Status</dt>
@@ -43,12 +62,20 @@ function CampaignDetailsModal({ campaign, account, onContribute, isContributing,
         </div>
       </dl>
 
-      {canContribute && (
-        <ContributeForm
-          onContribute={(amountEth) => onContribute(campaign.id, amountEth)}
-          isContributing={isContributing}
-        />
-      )}
+      {canContribute &&
+        (account ? (
+          <ContributeForm
+            onContribute={(amountEth) => onContribute(campaign.id, amountEth)}
+            isContributing={isContributing}
+          />
+        ) : (
+          <div className="contribute-form">
+            <p className="campaign-description">Connect your wallet to contribute to this campaign.</p>
+            <button type="button" onClick={onConnectWallet}>
+              Connect Wallet
+            </button>
+          </div>
+        ))}
 
       {canWithdraw && (
         <WithdrawButton onWithdraw={() => onWithdraw(campaign.id)} isWithdrawing={isWithdrawing} />

@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"math/big"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,6 +17,8 @@ import (
 	"github.com/joho/godotenv"
 
 	"crowdfunding-backend/contract"
+	"crowdfunding-backend/db"
+	"crowdfunding-backend/models"
 )
 
 type CampaignResponse struct {
@@ -60,9 +64,25 @@ func main() {
 
 	rpcURL := os.Getenv("RPC_URL")
 	contractAddress := os.Getenv("CONTRACT_ADDRESS")
-	if rpcURL == "" || contractAddress == "" {
-		log.Fatal("RPC_URL and CONTRACT_ADDRESS must be set")
+	jwtSecret := os.Getenv("JWT_SECRET")
+	postgresUser := os.Getenv("POSTGRES_USER")
+	postgresPassword := os.Getenv("POSTGRES_PASSWORD")
+	postgresDB := os.Getenv("POSTGRES_DB")
+	postgresPort := os.Getenv("POSTGRES_PORT")
+	if rpcURL == "" || contractAddress == "" || jwtSecret == "" ||
+		postgresUser == "" || postgresPassword == "" || postgresDB == "" || postgresPort == "" {
+		log.Fatal("RPC_URL, CONTRACT_ADDRESS, JWT_SECRET, and POSTGRES_* variables must be set")
 	}
+
+	postgresHost := os.Getenv("POSTGRES_HOST")
+	if postgresHost == "" {
+		postgresHost = "localhost"
+	}
+
+	databaseURL := fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		postgresUser, postgresPassword, postgresHost, postgresPort, postgresDB,
+	)
 
 	client, err := ethclient.Dial(rpcURL)
 	if err != nil {
@@ -74,14 +94,129 @@ func main() {
 		log.Fatalf("failed to bind contract: %v", err)
 	}
 
+	gormDB, err := db.Connect(databaseURL)
+	if err != nil {
+		log.Fatalf("failed to connect to database: %v", err)
+	}
+
+	if err := db.Migrate(gormDB); err != nil {
+		log.Fatalf("failed to migrate database: %v", err)
+	}
+
 	router := gin.Default()
-	router.Use(cors.Default())
+	router.Use(cors.New(cors.Config{
+		AllowAllOrigins: true,
+		AllowMethods:    []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"},
+		AllowHeaders:    []string{"Origin", "Content-Type", "Authorization"},
+		MaxAge:          12 * time.Hour,
+	}))
+
+	secret := []byte(jwtSecret)
+	nonces := newNonceStore()
 
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	router.GET("/campaigns/count", func(c *gin.Context) {
+	api := router.Group("/api/v1")
+
+	api.GET("/auth/nonce", func(c *gin.Context) {
+		address := c.Query("address")
+		if address == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "address is required"})
+			return
+		}
+
+		nonce, err := nonces.Issue(address)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue nonce"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"nonce": nonce, "message": buildSignInMessage(nonce)})
+	})
+
+	api.POST("/auth/verify", func(c *gin.Context) {
+		var req struct {
+			Address   string `json:"address" binding:"required"`
+			Signature string `json:"signature" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "address and signature are required"})
+			return
+		}
+
+		nonce, ok := nonces.PeekAndDelete(req.Address)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "nonce not found or expired, request a new one"})
+			return
+		}
+
+		expectedMessage := buildSignInMessage(nonce)
+		recovered, err := recoverAddress(expectedMessage, req.Signature)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid signature"})
+			return
+		}
+
+		if !strings.EqualFold(recovered.Hex(), req.Address) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "signature does not match address"})
+			return
+		}
+
+		token, err := generateJWT(secret, recovered.Hex())
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to issue session"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"token": token, "address": recovered.Hex()})
+	})
+
+	api.GET("/me", authMiddleware(secret), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"address": c.GetString("address")})
+	})
+
+	api.GET("/me/profile", authMiddleware(secret), func(c *gin.Context) {
+		profile, err := models.GetProfile(gormDB, c.GetString("address"))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, profile)
+	})
+
+	api.PUT("/me/profile", authMiddleware(secret), func(c *gin.Context) {
+		var req struct {
+			DisplayName string `json:"displayName"`
+			Email       string `json:"email"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+			return
+		}
+
+		profile, err := models.UpsertProfile(gormDB, c.GetString("address"), req.DisplayName, req.Email)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, profile)
+	})
+
+	api.GET("/profiles/:address", func(c *gin.Context) {
+		profile, err := models.GetProfile(gormDB, c.Param("address"))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"address": profile.Address, "displayName": profile.DisplayName})
+	})
+
+	api.GET("/campaigns/count", func(c *gin.Context) {
 		count, err := crowdFunding.CampaignCount(nil)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -90,7 +225,7 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"count": count.String()})
 	})
 
-	router.GET("/campaigns", func(c *gin.Context) {
+	api.GET("/campaigns", func(c *gin.Context) {
 		offset, err := strconv.ParseUint(c.DefaultQuery("offset", "0"), 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid offset"})
@@ -117,7 +252,7 @@ func main() {
 		c.JSON(http.StatusOK, response)
 	})
 
-	router.GET("/campaigns/:id", func(c *gin.Context) {
+	api.GET("/campaigns/:id", func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid campaign id"})

@@ -40,10 +40,27 @@ cd backend
 cp .env.example .env
 ```
 
-Set `RPC_URL` (your Anvil endpoint) and `CONTRACT_ADDRESS` (from the deploy
-step above) in `.env`, then run the server:
+Set `RPC_URL` (your Anvil endpoint), `CONTRACT_ADDRESS` (from the deploy step
+above), `JWT_SECRET` (any long random string, used to sign session tokens),
+and the `POSTGRES_*` values in `.env`.
+
+Both Postgres and the backend itself run via Docker Compose (the backend
+auto-migrates the database schema on startup):
 
 ```shell
+docker compose up -d --build
+```
+
+Inside the container, the backend reaches Postgres via the Docker network
+(`POSTGRES_HOST=postgres`, overridden automatically in `docker-compose.yml`)
+and reaches Anvil on your host machine via `host.docker.internal` instead of
+`127.0.0.1`.
+
+Alternatively, for faster iteration while developing, run just Postgres in
+Docker and the backend directly on your host:
+
+```shell
+docker compose up -d postgres
 go run .
 ```
 

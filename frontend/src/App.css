@@ -5,38 +5,31 @@
   text-align: left;
 }
 
-.app h1 {
-  font-size: 24px;
-  letter-spacing: normal;
-  margin: 28px 0 20px;
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
 }
 
-.connect {
+.topbar h1 {
+  font-size: 22px;
+  letter-spacing: normal;
+  margin: 0;
+}
+
+.topbar-actions {
   display: flex;
-  justify-content: center;
-  padding: 48px 0;
+  align-items: center;
+  gap: 12px;
 }
 
 .dashboard {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.summary-card {
-  display: flex;
-  align-self: flex-start;
-  gap: 32px;
-  padding: 16px 20px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--code-bg);
-}
-
-.summary-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .label {
