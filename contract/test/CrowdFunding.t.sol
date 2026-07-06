@@ -10,6 +10,7 @@ contract CrowdFundingTest is Test {
     event ContributionMade(uint256 indexed campaignId, address indexed contributor, uint256 amount);
     event FundsWithdrawn(uint256 indexed campaignId, address indexed owner, uint256 amount);
     event ContributionRefunded(uint256 indexed campaignId, address indexed contributor, uint256 amount);
+    event CampaignClosed(uint256 indexed campaignId, address indexed owner);
 
     string constant TITLE = "Save the Turtles";
     string constant DESCRIPTION = "Help us protect sea turtles";
@@ -124,6 +125,82 @@ contract CrowdFundingTest is Test {
         vm.expectRevert(CrowdFunding.ContributionMustBeGreaterThanZero.selector);
         vm.prank(alice);
         crowdFunding.contribute{value: 0}(campaignId);
+    }
+
+    function test_CloseCampaign_SetsDeadlineToCurrentTimestamp() public {
+        uint256 campaignId = _createCampaign(GOAL, DURATION);
+
+        vm.prank(campaignOwner);
+        crowdFunding.closeCampaign(campaignId);
+
+        assertEq(crowdFunding.getCampaign(campaignId).deadline, block.timestamp);
+    }
+
+    function test_CloseCampaign_EmitsCampaignClosed() public {
+        uint256 campaignId = _createCampaign(GOAL, DURATION);
+
+        vm.expectEmit(true, true, false, true);
+        emit CampaignClosed(campaignId, campaignOwner);
+
+        vm.prank(campaignOwner);
+        crowdFunding.closeCampaign(campaignId);
+    }
+
+    function test_CloseCampaign_RevertsWhenCallerIsNotOwner() public {
+        uint256 campaignId = _createCampaign(GOAL, DURATION);
+
+        vm.expectRevert(CrowdFunding.NotCampaignOwner.selector);
+        vm.prank(alice);
+        crowdFunding.closeCampaign(campaignId);
+    }
+
+    function test_CloseCampaign_RevertsWhenAlreadyEnded() public {
+        uint256 campaignId = _createCampaign(GOAL, DURATION);
+        vm.warp(block.timestamp + DURATION + 1);
+
+        vm.expectRevert(CrowdFunding.CampaignHasEnded.selector);
+        vm.prank(campaignOwner);
+        crowdFunding.closeCampaign(campaignId);
+    }
+
+    function test_CloseCampaign_BlocksFurtherContributions() public {
+        uint256 campaignId = _createCampaign(GOAL, DURATION);
+
+        vm.prank(campaignOwner);
+        crowdFunding.closeCampaign(campaignId);
+
+        vm.expectRevert(CrowdFunding.CampaignHasEnded.selector);
+        vm.prank(alice);
+        crowdFunding.contribute{value: 1 ether}(campaignId);
+    }
+
+    function test_CloseCampaign_AllowsImmediateRefundWhenGoalNotReached() public {
+        uint256 campaignId = _createCampaign(GOAL, DURATION);
+        vm.prank(alice);
+        crowdFunding.contribute{value: 3 ether}(campaignId);
+
+        vm.prank(campaignOwner);
+        crowdFunding.closeCampaign(campaignId);
+
+        uint256 aliceBalanceBefore = alice.balance;
+
+        vm.prank(alice);
+        crowdFunding.refund(campaignId);
+
+        assertEq(alice.balance, aliceBalanceBefore + 3 ether);
+    }
+
+    function test_CloseCampaign_DoesNotAllowRefundWhenGoalAlreadyReached() public {
+        uint256 campaignId = _createCampaign(GOAL, DURATION);
+        vm.prank(alice);
+        crowdFunding.contribute{value: GOAL}(campaignId);
+
+        vm.prank(campaignOwner);
+        crowdFunding.closeCampaign(campaignId);
+
+        vm.expectRevert(CrowdFunding.GoalAlreadyReached.selector);
+        vm.prank(alice);
+        crowdFunding.refund(campaignId);
     }
 
     function test_Withdraw_TransfersFundsToOwnerWhenGoalReached() public {

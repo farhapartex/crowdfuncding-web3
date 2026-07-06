@@ -13,6 +13,7 @@ contract CrowdFunding {
     event ContributionMade(uint256 indexed campaignId, address indexed contributor, uint256 amount);
     event FundsWithdrawn(uint256 indexed campaignId, address indexed owner, uint256 amount);
     event ContributionRefunded(uint256 indexed campaignId, address indexed contributor, uint256 amount);
+    event CampaignClosed(uint256 indexed campaignId, address indexed owner);
 
     error GoalMustBeGreaterThanZero();
     error DurationMustBeGreaterThanZero();
@@ -66,6 +67,18 @@ contract CrowdFunding {
         contributions[campaignId][msg.sender] += msg.value;
 
         emit ContributionMade(campaignId, msg.sender, msg.value);
+    }
+
+    function closeCampaign(uint256 campaignId) external campaignExists(campaignId) {
+        Campaign storage campaign = campaigns[campaignId];
+
+        if (msg.sender != campaign.owner) revert NotCampaignOwner();
+        // forge-lint: disable-next-line(block-timestamp)
+        if (block.timestamp >= campaign.deadline) revert CampaignHasEnded();
+
+        campaign.deadline = block.timestamp;
+
+        emit CampaignClosed(campaignId, msg.sender);
     }
 
     function withdraw(uint256 campaignId) external campaignExists(campaignId) {
