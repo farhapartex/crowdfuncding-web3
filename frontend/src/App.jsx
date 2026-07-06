@@ -124,6 +124,7 @@ function App() {
             element={
               <CampaignsPage
                 account={account}
+                sessionAddress={sessionAddress}
                 provider={provider}
                 onConnectWallet={connectWallet}
                 setError={setError}
@@ -137,6 +138,7 @@ function App() {
               <CampaignManagePage
                 provider={provider}
                 account={account}
+                sessionAddress={sessionAddress}
                 setError={setError}
                 showToast={showToast}
               />

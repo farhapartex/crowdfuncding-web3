@@ -5,10 +5,10 @@ import { fetchCampaign, fetchContributors } from '../lib/api'
 import { getCrowdFundingContract } from '../lib/crowdFundingContract'
 import { shortenAddress, formatEth, formatDate } from '../utils/format'
 import StatusBadge from '../components/ui/StatusBadge'
-import WithdrawButton from '../components/WithdrawButton'
 import ContributeForm from '../components/ContributeForm'
+import Button from '../components/ui/Button'
 
-function DetailsTab({ campaign, canContribute, isContributing, onContribute, canWithdraw, isWithdrawing, onWithdraw }) {
+function DetailsTab({ campaign, canContribute, isContributing, onContribute }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <p className="text-sm text-slate-600">{campaign.description}</p>
@@ -47,7 +47,6 @@ function DetailsTab({ campaign, canContribute, isContributing, onContribute, can
       </dl>
 
       {canContribute && <ContributeForm onContribute={onContribute} isContributing={isContributing} />}
-      {canWithdraw && <WithdrawButton onWithdraw={onWithdraw} isWithdrawing={isWithdrawing} />}
     </div>
   )
 }
@@ -101,13 +100,14 @@ function ContributorsTab({ campaignId, setError }) {
   )
 }
 
-function CampaignManagePage({ provider, account, setError, showToast }) {
+function CampaignManagePage({ provider, account, sessionAddress, setError, showToast }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const [campaign, setCampaign] = useState(null)
   const [activeTab, setActiveTab] = useState('details')
   const [isWithdrawing, setIsWithdrawing] = useState(false)
   const [isContributing, setIsContributing] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
 
   useEffect(() => {
     fetchCampaign(id)
@@ -118,11 +118,11 @@ function CampaignManagePage({ provider, account, setError, showToast }) {
   useEffect(() => {
     if (!campaign) return
 
-    const isOwner = account && account.toLowerCase() === campaign.owner.toLowerCase()
+    const isOwner = sessionAddress && sessionAddress.toLowerCase() === campaign.owner.toLowerCase()
     if (!isOwner) {
       navigate('/', { replace: true })
     }
-  }, [campaign, account, navigate])
+  }, [campaign, sessionAddress, navigate])
 
   async function handleContribute(amountEth) {
     setError(null)
@@ -169,26 +169,73 @@ function CampaignManagePage({ provider, account, setError, showToast }) {
     }
   }
 
+  async function handleCloseCampaign() {
+    setError(null)
+    setIsClosing(true)
+
+    try {
+      const signer = await provider.getSigner()
+      const crowdFunding = getCrowdFundingContract(signer)
+
+      const tx = await crowdFunding.closeCampaign(id)
+      await tx.wait()
+
+      const updated = await fetchCampaign(id)
+      setCampaign(updated)
+      showToast('Campaign closed. Contributors can now claim refunds if the goal was not reached.')
+    } catch (err) {
+      setError(err.shortMessage || err.message)
+    } finally {
+      setIsClosing(false)
+    }
+  }
+
   if (!campaign) {
     return <p className="text-sm text-slate-500">Loading campaign...</p>
   }
 
-  const isOwner = account && account.toLowerCase() === campaign.owner.toLowerCase()
+  const isOwner = sessionAddress && sessionAddress.toLowerCase() === campaign.owner.toLowerCase()
 
   if (!isOwner) {
     return null
   }
 
-  const canContribute = Date.now() / 1000 < Number(campaign.deadline)
+  const isActive = Date.now() / 1000 < Number(campaign.deadline)
   const canWithdraw = campaign.status === 'Successful' && !campaign.withdrawn
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <Link to="/" className="text-sm text-indigo-600 hover:text-indigo-500">
-          &larr; Back to campaigns
-        </Link>
-        <h1 className="mt-2 text-xl font-semibold text-slate-900">{campaign.title}</h1>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <Link to="/" className="text-sm text-indigo-600 hover:text-indigo-500">
+            &larr; Back to campaigns
+          </Link>
+          <h1 className="mt-2 text-xl font-semibold text-slate-900">{campaign.title}</h1>
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          <Button
+            variant="secondary"
+            onClick={handleCloseCampaign}
+            disabled={isClosing || !isActive}
+            title={!isActive ? 'Campaign has already ended' : undefined}
+          >
+            {isClosing ? 'Closing...' : 'Close Campaign'}
+          </Button>
+          <Button
+            onClick={handleWithdraw}
+            disabled={isWithdrawing || !canWithdraw}
+            title={
+              campaign.withdrawn
+                ? 'Funds already withdrawn'
+                : campaign.status !== 'Successful'
+                  ? 'Goal not reached yet'
+                  : undefined
+            }
+          >
+            {isWithdrawing ? 'Withdrawing...' : 'Withdraw Funds'}
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-6 border-b border-slate-200">
@@ -219,12 +266,9 @@ function CampaignManagePage({ provider, account, setError, showToast }) {
       {activeTab === 'details' ? (
         <DetailsTab
           campaign={campaign}
-          canContribute={canContribute}
+          canContribute={isActive}
           isContributing={isContributing}
           onContribute={handleContribute}
-          canWithdraw={canWithdraw}
-          isWithdrawing={isWithdrawing}
-          onWithdraw={handleWithdraw}
         />
       ) : (
         <ContributorsTab campaignId={id} setError={setError} />

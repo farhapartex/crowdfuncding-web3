@@ -13,7 +13,7 @@ import Button from '../components/ui/Button'
 const SECONDS_PER_DAY = 24 * 60 * 60
 const PAGE_SIZE = 10
 
-function CampaignsPage({ account, provider, onConnectWallet, setError, showToast }) {
+function CampaignsPage({ account, sessionAddress, provider, onConnectWallet, setError, showToast }) {
   const navigate = useNavigate()
   const [campaigns, setCampaigns] = useState([])
   const [totalCampaigns, setTotalCampaigns] = useState(0)
@@ -83,7 +83,7 @@ function CampaignsPage({ account, provider, onConnectWallet, setError, showToast
 
   function handleSelectCampaign(campaignId) {
     const campaign = campaigns.find((c) => c.id === campaignId)
-    const isOwner = account && campaign && account.toLowerCase() === campaign.owner.toLowerCase()
+    const isOwner = sessionAddress && campaign && sessionAddress.toLowerCase() === campaign.owner.toLowerCase()
 
     if (isOwner) {
       navigate(`/campaigns/${campaignId}/manage`)
@@ -100,8 +100,8 @@ function CampaignsPage({ account, provider, onConnectWallet, setError, showToast
         <h1 className="text-xl font-semibold text-slate-900">Campaigns ({totalCampaigns})</h1>
         <Button
           onClick={() => setShowCreateModal(true)}
-          disabled={!account}
-          title={!account ? 'Connect your wallet first' : undefined}
+          disabled={!sessionAddress}
+          title={!account ? 'Connect your wallet first' : !sessionAddress ? 'Sign in first' : undefined}
         >
           Create Campaign
         </Button>
