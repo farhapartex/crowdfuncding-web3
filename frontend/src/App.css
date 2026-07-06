@@ -136,6 +136,23 @@ button:disabled {
   padding: 16px 0;
 }
 
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 8px;
+}
+
 .campaign-table {
   width: 100%;
   border-collapse: collapse;
