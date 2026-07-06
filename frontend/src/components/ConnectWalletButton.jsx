@@ -1,5 +1,7 @@
+import Button from './ui/Button'
+
 function ConnectWalletButton({ onConnect }) {
-  return <button onClick={onConnect}>Connect Wallet</button>
+  return <Button onClick={onConnect}>Connect Wallet</Button>
 }
 
 export default ConnectWalletButton

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import Modal from './Modal'
 import ContributeForm from './ContributeForm'
 import WithdrawButton from './WithdrawButton'
+import StatusBadge from './ui/StatusBadge'
+import Button from './ui/Button'
 import { shortenAddress, formatEth, formatDate } from '../utils/format'
 import { fetchPublicProfile } from '../lib/api'
 
@@ -29,36 +31,38 @@ function CampaignDetailsModal({
 
   return (
     <Modal title={campaign.title} onClose={onClose}>
-      <p className="campaign-description">{campaign.description}</p>
+      <p className="text-sm text-slate-600">{campaign.description}</p>
 
-      <dl className="campaign-details">
+      <dl className="mt-4 grid grid-cols-2 gap-4">
         <div>
-          <dt>Campaign ID</dt>
-          <dd>{campaign.id}</dd>
+          <dt className="text-xs text-slate-500">Campaign ID</dt>
+          <dd className="text-sm text-slate-900">{campaign.id}</dd>
         </div>
         <div>
-          <dt>Owner</dt>
-          <dd className="mono">{ownerDisplayName || shortenAddress(campaign.owner)}</dd>
+          <dt className="text-xs text-slate-500">Owner</dt>
+          <dd className="font-mono text-sm text-slate-900">{ownerDisplayName || shortenAddress(campaign.owner)}</dd>
         </div>
         <div>
-          <dt>Status</dt>
-          <dd>{campaign.status}</dd>
+          <dt className="text-xs text-slate-500">Status</dt>
+          <dd className="mt-0.5">
+            <StatusBadge status={campaign.status} />
+          </dd>
         </div>
         <div>
-          <dt>Goal</dt>
-          <dd>{formatEth(campaign.goal)}</dd>
+          <dt className="text-xs text-slate-500">Goal</dt>
+          <dd className="text-sm text-slate-900">{formatEth(campaign.goal)}</dd>
         </div>
         <div>
-          <dt>Amount raised</dt>
-          <dd>{formatEth(campaign.amountRaised)}</dd>
+          <dt className="text-xs text-slate-500">Amount raised</dt>
+          <dd className="text-sm text-slate-900">{formatEth(campaign.amountRaised)}</dd>
         </div>
         <div>
-          <dt>Deadline</dt>
-          <dd>{formatDate(campaign.deadline)}</dd>
+          <dt className="text-xs text-slate-500">Deadline</dt>
+          <dd className="text-sm text-slate-900">{formatDate(campaign.deadline)}</dd>
         </div>
         <div>
-          <dt>Withdrawn</dt>
-          <dd>{campaign.withdrawn ? 'Yes' : 'No'}</dd>
+          <dt className="text-xs text-slate-500">Withdrawn</dt>
+          <dd className="text-sm text-slate-900">{campaign.withdrawn ? 'Yes' : 'No'}</dd>
         </div>
       </dl>
 
@@ -69,11 +73,11 @@ function CampaignDetailsModal({
             isContributing={isContributing}
           />
         ) : (
-          <div className="contribute-form">
-            <p className="campaign-description">Connect your wallet to contribute to this campaign.</p>
-            <button type="button" onClick={onConnectWallet}>
+          <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4">
+            <p className="text-sm text-slate-600">Connect your wallet to contribute to this campaign.</p>
+            <Button type="button" onClick={onConnectWallet}>
               Connect Wallet
-            </button>
+            </Button>
           </div>
         ))}
 

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import Field from './ui/Field'
+import Button from './ui/Button'
 
 function CreateCampaignForm({ onCreate, isCreating }) {
   const [title, setTitle] = useState('')
@@ -21,36 +23,26 @@ function CreateCampaignForm({ onCreate, isCreating }) {
   }
 
   return (
-    <form className="campaign-form" onSubmit={handleSubmit}>
-      <div className="field">
-        <label htmlFor="title">Title</label>
-        <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
-      </div>
-      <div className="field">
-        <label htmlFor="description">Description</label>
-        <input
-          id="description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          required
-        />
-      </div>
-      <div className="field">
-        <label htmlFor="goal">Goal (ETH)</label>
-        <input id="goal" value={goalEth} onChange={(e) => setGoalEth(e.target.value)} required />
-      </div>
-      <div className="field">
-        <label htmlFor="duration">Duration (days)</label>
-        <input
-          id="duration"
-          value={durationDays}
-          onChange={(e) => setDurationDays(e.target.value)}
-          required
-        />
-      </div>
-      <button type="submit" disabled={isCreating}>
+    <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+      <Field id="title" label="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+      <Field
+        id="description"
+        label="Description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        required
+      />
+      <Field id="goal" label="Goal (ETH)" value={goalEth} onChange={(e) => setGoalEth(e.target.value)} required />
+      <Field
+        id="duration"
+        label="Duration (days)"
+        value={durationDays}
+        onChange={(e) => setDurationDays(e.target.value)}
+        required
+      />
+      <Button type="submit" disabled={isCreating} className="mt-1">
         {isCreating ? 'Creating...' : 'Create Campaign'}
-      </button>
+      </Button>
     </form>
   )
 }

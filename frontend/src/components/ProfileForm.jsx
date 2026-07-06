@@ -1,27 +1,27 @@
 import { useState } from 'react'
+import Field from './ui/Field'
+import Button from './ui/Button'
 
 function ProfileForm({ initialDisplayName, initialEmail, onSave, isSaving }) {
   const [displayName, setDisplayName] = useState(initialDisplayName)
-  const [email, setEmail] = useState(initialEmail)
 
   async function handleSubmit(e) {
     e.preventDefault()
-    await onSave({ displayName, email })
+    await onSave({ displayName, email: initialEmail })
   }
 
   return (
-    <form className="campaign-form" onSubmit={handleSubmit}>
-      <div className="field">
-        <label htmlFor="displayName">Display name</label>
-        <input id="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-      </div>
-      <div className="field">
-        <label htmlFor="profileEmail">Email</label>
-        <input id="profileEmail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      </div>
-      <button type="submit" disabled={isSaving}>
+    <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+      <Field
+        id="displayName"
+        label="Display name"
+        value={displayName}
+        onChange={(e) => setDisplayName(e.target.value)}
+      />
+      <Field id="profileEmail" label="Email" type="email" value={initialEmail} placeholder="Not set" disabled />
+      <Button type="submit" disabled={isSaving} className="mt-1">
         {isSaving ? 'Saving...' : 'Save Profile'}
-      </button>
+      </Button>
     </form>
   )
 }

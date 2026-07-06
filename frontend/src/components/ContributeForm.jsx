@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import Field from './ui/Field'
+import Button from './ui/Button'
 
 function ContributeForm({ onContribute, isContributing }) {
   const [amountEth, setAmountEth] = useState('')
@@ -15,19 +17,17 @@ function ContributeForm({ onContribute, isContributing }) {
   }
 
   return (
-    <form className="contribute-form" onSubmit={handleSubmit}>
-      <div className="field">
-        <label htmlFor="contribution-amount">Contribution amount (ETH)</label>
-        <input
-          id="contribution-amount"
-          value={amountEth}
-          onChange={(e) => setAmountEth(e.target.value)}
-          required
-        />
-      </div>
-      <button type="submit" disabled={isContributing}>
+    <form className="flex flex-col gap-3 border-t border-slate-200 pt-4" onSubmit={handleSubmit}>
+      <Field
+        id="contribution-amount"
+        label="Contribution amount (ETH)"
+        value={amountEth}
+        onChange={(e) => setAmountEth(e.target.value)}
+        required
+      />
+      <Button type="submit" disabled={isContributing}>
         {isContributing ? 'Contributing...' : 'Contribute'}
-      </button>
+      </Button>
     </form>
   )
 }
