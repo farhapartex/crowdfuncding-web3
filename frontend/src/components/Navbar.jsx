@@ -18,6 +18,14 @@ function Navbar({ account, sessionAddress, isSigningIn, onConnect, onSignIn, onS
               `text-sm font-medium transition-colors ${isActive ? 'text-indigo-600' : 'text-slate-600 hover:text-slate-900'}`
             }
           >
+            Home
+          </NavLink>
+          <NavLink
+            to="/campaigns"
+            className={({ isActive }) =>
+              `text-sm font-medium transition-colors ${isActive ? 'text-indigo-600' : 'text-slate-600 hover:text-slate-900'}`
+            }
+          >
             Campaigns
           </NavLink>
           <NavLink

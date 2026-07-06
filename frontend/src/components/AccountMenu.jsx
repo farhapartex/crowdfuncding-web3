@@ -57,6 +57,13 @@ function AccountMenu({ sessionAddress, isSigningIn, onSignIn, onSignOut }) {
           >
             Profile
           </Link>
+          <Link
+            to="/my-campaigns"
+            onClick={() => setIsOpen(false)}
+            className="rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+          >
+            Campaign
+          </Link>
           <button
             type="button"
             onClick={() => {

@@ -120,7 +120,7 @@ function CampaignManagePage({ provider, account, sessionAddress, setError, showT
 
     const isOwner = sessionAddress && sessionAddress.toLowerCase() === campaign.owner.toLowerCase()
     if (!isOwner) {
-      navigate('/', { replace: true })
+      navigate('/campaigns', { replace: true })
     }
   }, [campaign, sessionAddress, navigate])
 
@@ -207,7 +207,7 @@ function CampaignManagePage({ provider, account, sessionAddress, setError, showT
     <div className="flex flex-col gap-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Link to="/" className="text-sm text-indigo-600 hover:text-indigo-500">
+          <Link to="/campaigns" className="text-sm text-indigo-600 hover:text-indigo-500">
             &larr; Back to campaigns
           </Link>
           <h1 className="mt-2 text-xl font-semibold text-slate-900">{campaign.title}</h1>

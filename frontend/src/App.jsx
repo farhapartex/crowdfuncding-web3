@@ -5,9 +5,13 @@ import { fetchSignInMessage, verifySignIn, fetchMe } from './lib/api'
 import Navbar from './components/Navbar'
 import ToastContainer from './components/ToastContainer'
 import CampaignsPage from './pages/CampaignsPage'
+import CampaignDetailsPage from './pages/CampaignDetailsPage'
 import CampaignManagePage from './pages/CampaignManagePage'
-import AboutPage from './pages/AboutPage'
 import ProfilePage from './pages/ProfilePage'
+import MyCampaignsPage from './pages/MyCampaignsPage'
+import CreateCampaignPage from './pages/CreateCampaignPage'
+import HomePage from './landing/HomePage'
+import AboutUsPage from './landing/AboutUsPage'
 
 const SESSION_TOKEN_KEY = 'sessionToken'
 const TOAST_DURATION_MS = 4000
@@ -119,13 +123,14 @@ function App() {
         )}
 
         <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/campaigns" element={<CampaignsPage />} />
           <Route
-            path="/"
+            path="/campaigns/:id"
             element={
-              <CampaignsPage
-                account={account}
-                sessionAddress={sessionAddress}
+              <CampaignDetailsPage
                 provider={provider}
+                account={account}
                 onConnectWallet={connectWallet}
                 setError={setError}
                 showToast={showToast}
@@ -144,7 +149,9 @@ function App() {
               />
             }
           />
-          <Route path="/about" element={<AboutPage />} />
+          <Route path="/about" element={<AboutUsPage />} />
+          <Route path="/my-campaigns" element={<MyCampaignsPage />} />
+          <Route path="/create-campaign" element={<CreateCampaignPage />} />
           <Route
             path="/profile"
             element={
