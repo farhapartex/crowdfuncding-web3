@@ -13,7 +13,7 @@ function Modal({ title, onClose, children }) {
           <button
             onClick={onClose}
             aria-label="Close"
-            className="rounded-md p-1 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="cursor-pointer rounded-md p-1 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
             &times;
           </button>

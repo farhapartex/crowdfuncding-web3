@@ -89,6 +89,18 @@ export async function updateMyProfile(token, { displayName, email }) {
   return response.json()
 }
 
+export async function fetchAuth0Me(accessToken) {
+  const response = await fetch(`${API_V1_URL}/auth0/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!response.ok) {
+    const error = new Error(`Failed to load current user (status ${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return response.json()
+}
+
 export async function syncAuth0User(accessToken) {
   const response = await fetch(`${API_V1_URL}/auth0/sync`, {
     method: 'POST',
@@ -96,6 +108,55 @@ export async function syncAuth0User(accessToken) {
   })
   if (!response.ok) {
     throw new Error(`Failed to sync user (status ${response.status})`)
+  }
+  return response.json()
+}
+
+export async function uploadAsset(accessToken, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(`${API_V1_URL}/assets`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: formData,
+  })
+  if (!response.ok) {
+    const { error } = await response.json().catch(() => ({}))
+    throw new Error(error || `Failed to upload image (status ${response.status})`)
+  }
+  return response.json()
+}
+
+export async function fetchMyCampaigns(accessToken, { offset = 0, limit = 20 } = {}) {
+  const response = await fetch(`${API_V1_URL}/my-campaigns?offset=${offset}&limit=${limit}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to load your campaigns (status ${response.status})`)
+  }
+  return response.json()
+}
+
+export async function createMyCampaign(accessToken, payload) {
+  const response = await fetch(`${API_V1_URL}/my-campaigns`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    const { error } = await response.json().catch(() => ({}))
+    throw new Error(error || `Failed to create campaign (status ${response.status})`)
+  }
+  return response.json()
+}
+
+export async function fetchMyCampaign(accessToken, id) {
+  const response = await fetch(`${API_V1_URL}/my-campaigns/${id}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to load campaign (status ${response.status})`)
   }
   return response.json()
 }

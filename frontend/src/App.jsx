@@ -12,9 +12,14 @@ import MyCampaignsPage from './pages/MyCampaignsPage'
 import CreateCampaignPage from './pages/CreateCampaignPage'
 import HomePage from './landing/HomePage'
 import AboutUsPage from './landing/AboutUsPage'
+import withAuthGuard from './auth/withAuthGuard'
 
 const SESSION_TOKEN_KEY = 'sessionToken'
 const TOAST_DURATION_MS = 4000
+
+const GuardedMyCampaignsPage = withAuthGuard(MyCampaignsPage)
+const GuardedCreateCampaignPage = withAuthGuard(CreateCampaignPage)
+const GuardedProfilePage = withAuthGuard(ProfilePage)
 
 function App() {
   const [provider, setProvider] = useState(null)
@@ -88,12 +93,6 @@ function App() {
     }
   }
 
-  function handleSignOut() {
-    setSessionToken(null)
-    setSessionAddress(null)
-    localStorage.removeItem(SESSION_TOKEN_KEY)
-  }
-
   function dismissToast(id) {
     setToasts((prev) => prev.filter((toast) => toast.id !== id))
   }
@@ -106,7 +105,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Navbar account={account} onConnect={connectWallet} onSignOut={handleSignOut} />
+      <Navbar account={account} onConnect={connectWallet} />
 
       <main className="mx-auto max-w-5xl px-6 py-8">
         {error && (
@@ -143,18 +142,12 @@ function App() {
             }
           />
           <Route path="/about" element={<AboutUsPage />} />
-          <Route path="/my-campaigns" element={<MyCampaignsPage />} />
-          <Route path="/create-campaign" element={<CreateCampaignPage />} />
+          <Route path="/my-campaigns" element={<GuardedMyCampaignsPage />} />
+          <Route path="/create-campaign" element={<GuardedCreateCampaignPage />} />
           <Route
             path="/profile"
             element={
-              <ProfilePage
-                account={account}
-                sessionToken={sessionToken}
-                sessionAddress={sessionAddress}
-                isSigningIn={isSigningIn}
-                onSignIn={handleSignIn}
-              />
+              <GuardedProfilePage account={account} onConnectWallet={connectWallet} />
             }
           />
         </Routes>

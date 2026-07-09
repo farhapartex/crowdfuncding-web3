@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/big"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -14,12 +16,15 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 
 	"crowdfunding-backend/contract"
 	"crowdfunding-backend/db"
 	"crowdfunding-backend/models"
 )
+
+const maxAssetUploadSize = 10 * 1024 * 1024
 
 type CampaignResponse struct {
 	ID           uint64 `json:"id"`
@@ -80,6 +85,17 @@ func main() {
 	auth0KeyFunc, err := newAuth0KeyFunc(auth0Domain)
 	if err != nil {
 		log.Fatalf("failed to load auth0 jwks: %v", err)
+	}
+
+	r2AccountID := os.Getenv("R2_ACCOUNT_ID")
+	r2AccessKeyID := os.Getenv("R2_ACCESS_KEY_ID")
+	r2SecretAccessKey := os.Getenv("R2_SECRET_ACCESS_KEY")
+	r2Bucket := os.Getenv("R2_BUCKET")
+	r2PublicURL := os.Getenv("R2_PUBLIC_URL")
+
+	r2Client, err := newR2Client(context.Background(), r2AccountID, r2AccessKeyID, r2SecretAccessKey)
+	if err != nil {
+		log.Fatalf("failed to init r2 client: %v", err)
 	}
 
 	postgresHost := os.Getenv("POSTGRES_HOST")
@@ -247,6 +263,194 @@ func main() {
 		}
 
 		c.JSON(http.StatusOK, user)
+	})
+
+	api.POST("/assets", auth0Middleware(auth0KeyFunc, auth0Domain, auth0Audience), func(c *gin.Context) {
+		if r2Bucket == "" || r2PublicURL == "" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "asset storage is not configured yet"})
+			return
+		}
+
+		fileHeader, err := c.FormFile("file")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
+			return
+		}
+		if fileHeader.Size > maxAssetUploadSize {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "file exceeds 10MB limit"})
+			return
+		}
+
+		contentType := fileHeader.Header.Get("Content-Type")
+		if !strings.HasPrefix(contentType, "image/") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "only image uploads are allowed"})
+			return
+		}
+
+		file, err := fileHeader.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read uploaded file"})
+			return
+		}
+		defer file.Close()
+
+		sub := c.GetString("sub")
+		ext := filepath.Ext(fileHeader.Filename)
+		objectKey := fmt.Sprintf("uploads/campaign/covers/%s%s", uuid.NewString(), ext)
+
+		if err := uploadObjectToR2(c.Request.Context(), r2Client, r2Bucket, objectKey, contentType, file, fileHeader.Size); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload file"})
+			return
+		}
+
+		assetURL := fmt.Sprintf("%s/%s", strings.TrimRight(r2PublicURL, "/"), objectKey)
+
+		asset, err := models.CreateAsset(gormDB, sub, r2Bucket, objectKey, assetURL, contentType, fileHeader.Size)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, asset)
+	})
+
+	api.GET("/my-campaigns", auth0Middleware(auth0KeyFunc, auth0Domain, auth0Audience), func(c *gin.Context) {
+		pagination, err := parsePagination(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		sub := c.GetString("sub")
+
+		campaigns, total, err := models.ListCampaignsByOwner(gormDB, sub, pagination.Offset, pagination.Limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		campaignIDs := make([]uint64, len(campaigns))
+		for i, campaign := range campaigns {
+			campaignIDs[i] = campaign.ID
+		}
+
+		coverURLs, err := models.GetCoverAssetsForCampaigns(gormDB, campaignIDs)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		items := make([]gin.H, len(campaigns))
+		for i, campaign := range campaigns {
+			items[i] = gin.H{
+				"id":             campaign.ID,
+				"title":          campaign.Title,
+				"description":    campaign.Description,
+				"targetEth":      campaign.TargetEth,
+				"country":        campaign.Country,
+				"fundraisingFor": campaign.FundraisingFor,
+				"status":         campaign.Status,
+				"coverUrl":       coverURLs[campaign.ID],
+				"createdAt":      campaign.CreatedAt,
+			}
+		}
+
+		c.JSON(http.StatusOK, PaginatedResponse{
+			Items:  items,
+			Total:  total,
+			Offset: pagination.Offset,
+			Limit:  pagination.Limit,
+		})
+	})
+
+	api.POST("/my-campaigns", auth0Middleware(auth0KeyFunc, auth0Domain, auth0Audience), func(c *gin.Context) {
+		var req struct {
+			Country        string   `json:"country" binding:"required"`
+			Title          string   `json:"title" binding:"required"`
+			Description    string   `json:"description"`
+			TargetEth      string   `json:"targetEth" binding:"required"`
+			FundraisingFor string   `json:"fundraisingFor" binding:"required"`
+			AssetIDs       []uint64 `json:"assetIds" binding:"required,min=1"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "at least one image is required"})
+			return
+		}
+
+		sub := c.GetString("sub")
+
+		assets, err := models.GetAssetsByIDs(gormDB, req.AssetIDs)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if len(assets) != len(req.AssetIDs) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "one or more assets do not exist"})
+			return
+		}
+		for _, asset := range assets {
+			if asset.UploadedBy != sub {
+				c.JSON(http.StatusForbidden, gin.H{"error": "one or more assets do not belong to you"})
+				return
+			}
+		}
+
+		campaign, err := models.CreateCampaign(gormDB, sub, req.Country, req.Title, req.Description, req.TargetEth, req.FundraisingFor)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		if err := models.AttachAssetsToCampaign(gormDB, campaign.ID, req.AssetIDs, req.AssetIDs[0]); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, campaign)
+	})
+
+	api.GET("/my-campaigns/:id", auth0Middleware(auth0KeyFunc, auth0Domain, auth0Audience), func(c *gin.Context) {
+		campaignID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid campaign id"})
+			return
+		}
+
+		campaign, err := models.GetCampaignByID(gormDB, campaignID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if campaign == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "campaign not found"})
+			return
+		}
+		if campaign.OwnerSub != c.GetString("sub") {
+			c.JSON(http.StatusForbidden, gin.H{"error": "not the owner of this campaign"})
+			return
+		}
+
+		assets, err := models.GetCampaignAssets(gormDB, campaign.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"id":                campaign.ID,
+			"ownerSub":          campaign.OwnerSub,
+			"country":           campaign.Country,
+			"title":             campaign.Title,
+			"description":       campaign.Description,
+			"targetEth":         campaign.TargetEth,
+			"fundraisingFor":    campaign.FundraisingFor,
+			"status":            campaign.Status,
+			"walletAddress":     campaign.WalletAddress,
+			"onChainCampaignId": campaign.OnChainCampaignID,
+			"publishedAt":       campaign.PublishedAt,
+			"createdAt":         campaign.CreatedAt,
+			"assets":            assets,
+		})
 	})
 
 	api.GET("/profiles/:address", func(c *gin.Context) {

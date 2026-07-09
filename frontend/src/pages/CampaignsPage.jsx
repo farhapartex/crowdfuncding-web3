@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchCampaigns } from '../lib/api'
 import CampaignGrid from '../components/CampaignGrid'
+import CampaignSearchBar from '../components/CampaignSearchBar'
 import Pagination from '../components/Pagination'
 
 const PAGE_SIZE = 10
@@ -11,6 +12,8 @@ function CampaignsPage() {
   const [campaigns, setCampaigns] = useState([])
   const [totalCampaigns, setTotalCampaigns] = useState(0)
   const [offset, setOffset] = useState(0)
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('All Categories')
 
   useEffect(() => {
     refreshCampaigns(0)
@@ -27,11 +30,21 @@ function CampaignsPage() {
     navigate(`/campaigns/${campaignId}`)
   }
 
-  return (
-    <div className="flex flex-col gap-5">
-      <h1 className="text-xl font-semibold text-slate-900">Campaigns ({totalCampaigns})</h1>
+  const filteredCampaigns = useMemo(
+    () => campaigns.filter((campaign) => campaign.title.toLowerCase().includes(search.toLowerCase())),
+    [campaigns, search],
+  )
 
-      <CampaignGrid campaigns={campaigns} onSelect={handleSelectCampaign} />
+  return (
+    <div className="flex flex-col gap-6">
+      <CampaignSearchBar
+        search={search}
+        onSearchChange={setSearch}
+        category={category}
+        onCategoryChange={setCategory}
+      />
+
+      <CampaignGrid campaigns={filteredCampaigns} onSelect={handleSelectCampaign} />
 
       <Pagination
         offset={offset}

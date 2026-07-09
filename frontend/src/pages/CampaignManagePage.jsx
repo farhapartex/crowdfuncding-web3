@@ -242,7 +242,7 @@ function CampaignManagePage({ provider, account, sessionAddress, setError, showT
         <button
           type="button"
           onClick={() => setActiveTab('details')}
-          className={`border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
+          className={`cursor-pointer border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
             activeTab === 'details'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -253,7 +253,7 @@ function CampaignManagePage({ provider, account, sessionAddress, setError, showT
         <button
           type="button"
           onClick={() => setActiveTab('contributors')}
-          className={`border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
+          className={`cursor-pointer border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
             activeTab === 'contributors'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-700'

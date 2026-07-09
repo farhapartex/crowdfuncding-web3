@@ -9,7 +9,7 @@ function Auth0ProviderWithNavigate({ children }) {
   const audience = import.meta.env.VITE_AUTH0_AUDIENCE
 
   function onRedirectCallback(appState) {
-    navigate(appState?.returnTo || '/')
+    navigate(appState?.returnTo || '/my-campaigns')
   }
 
   return (
@@ -19,8 +19,10 @@ function Auth0ProviderWithNavigate({ children }) {
       authorizationParams={{
         redirect_uri: `${window.location.origin}/auth/callback`,
         audience,
-        scope: 'openid profile email',
+        scope: 'openid profile email offline_access',
       }}
+      useRefreshTokens
+      cacheLocation="localstorage"
       onRedirectCallback={onRedirectCallback}
     >
       {children}

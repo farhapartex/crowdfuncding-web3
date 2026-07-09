@@ -1,9 +1,13 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth0 } from '@auth0/auth0-react'
 import ConnectWalletButton from './ConnectWalletButton'
 import AccountMenu from './AccountMenu'
-import Auth0AccountButton from './Auth0AccountButton'
+import { useCurrentUser } from '../auth/CurrentUserContext'
 
-function Navbar({ account, onConnect, onSignOut }) {
+function Navbar({ account, onConnect }) {
+  const { isAuthenticated } = useAuth0()
+  const { currentUser } = useCurrentUser()
+  const displayName = currentUser?.displayName || currentUser?.email
   return (
     <nav className="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur-sm">
       <div className="mx-auto flex h-16 max-w-5xl items-center gap-8 px-6">
@@ -40,13 +44,14 @@ function Navbar({ account, onConnect, onSignOut }) {
         </div>
 
         <div className="flex items-center gap-4">
-          <Auth0AccountButton />
+          {isAuthenticated &&
+            (account ? (
+              <span className="hidden text-sm font-medium text-slate-700 sm:inline">{displayName}</span>
+            ) : (
+              <ConnectWalletButton onConnect={onConnect} />
+            ))}
 
-          {account ? (
-            <AccountMenu onSignOut={onSignOut} />
-          ) : (
-            <ConnectWalletButton onConnect={onConnect} />
-          )}
+          <AccountMenu />
         </div>
       </div>
     </nav>

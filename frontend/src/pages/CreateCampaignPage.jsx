@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth0 } from '@auth0/auth0-react'
+import { uploadAsset, createMyCampaign, fetchMyCampaign } from '../lib/api'
 import Button from '../components/ui/Button'
 
 const COUNTRIES = [
@@ -71,6 +73,15 @@ function formatEthDisplay(value) {
   return parsed.toLocaleString(undefined, { maximumFractionDigits: 4 })
 }
 
+function Spinner() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 animate-spin text-white">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function LivePreviewCard({ title, description, target, country, fundraisingFor, coverPhotoPreview }) {
   return (
     <div className="sticky top-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -125,49 +136,102 @@ function LivePreviewCard({ title, description, target, country, fundraisingFor, 
 
 function CreateCampaignPage() {
   const navigate = useNavigate()
+  const { getAccessTokenSilently } = useAuth0()
   const [step, setStep] = useState('form')
   const [country, setCountry] = useState(COUNTRIES[0])
   const [title, setTitle] = useState('')
   const [target, setTarget] = useState('')
   const [description, setDescription] = useState('')
   const [fundraisingFor, setFundraisingFor] = useState(FUNDRAISING_FOR_OPTIONS[0])
-  const [coverPhoto, setCoverPhoto] = useState(null)
   const [coverPhotoPreview, setCoverPhotoPreview] = useState('')
+  const [coverAsset, setCoverAsset] = useState(null)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [uploadError, setUploadError] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState(null)
+  const [campaignPreview, setCampaignPreview] = useState(null)
 
   useEffect(() => {
     if (!coverPhotoPreview) return
     return () => URL.revokeObjectURL(coverPhotoPreview)
   }, [coverPhotoPreview])
 
-  function setCoverFile(file) {
-    if (!file || !file.type.startsWith('image/')) return
-    setCoverPhoto(file)
+  async function uploadCoverFile(file) {
+    if (!file || !file.type.startsWith('image/') || isUploadingImage) return
+
     setCoverPhotoPreview(URL.createObjectURL(file))
+    setCoverAsset(null)
+    setUploadError(null)
+    setIsUploadingImage(true)
+
+    try {
+      const accessToken = await getAccessTokenSilently()
+      const asset = await uploadAsset(accessToken, file)
+      setCoverAsset(asset)
+    } catch (err) {
+      setUploadError(err.message)
+    } finally {
+      setIsUploadingImage(false)
+    }
   }
 
   function handleCoverPhotoChange(e) {
-    setCoverFile(e.target.files?.[0])
+    uploadCoverFile(e.target.files?.[0])
   }
 
   function handleDrop(e) {
     e.preventDefault()
     setIsDragging(false)
-    setCoverFile(e.dataTransfer.files?.[0])
+    uploadCoverFile(e.dataTransfer.files?.[0])
   }
 
-  function handleSubmit(e) {
+  function handleRemovePhoto() {
+    setCoverPhotoPreview('')
+    setCoverAsset(null)
+    setUploadError(null)
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault()
-    setStep('preview')
+
+    if (!coverAsset) {
+      setSubmitError('Please add at least one image before continuing.')
+      return
+    }
+
+    setSubmitError(null)
+    setIsSubmitting(true)
+
+    try {
+      const accessToken = await getAccessTokenSilently()
+      const created = await createMyCampaign(accessToken, {
+        country,
+        title,
+        description,
+        targetEth: target,
+        fundraisingFor,
+        assetIds: [coverAsset.id],
+      })
+      const details = await fetchMyCampaign(accessToken, created.id)
+      setCampaignPreview(details)
+      setStep('preview')
+    } catch (err) {
+      setSubmitError(err.message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  if (step === 'preview') {
+  if (step === 'preview' && campaignPreview) {
+    const previewCover = campaignPreview.assets?.find((asset) => asset.isCover) || campaignPreview.assets?.[0]
+
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-5xl">
         <button
           type="button"
-          onClick={() => setStep('form')}
-          className="mb-6 flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700"
+          onClick={() => navigate('/my-campaigns')}
+          className="mb-6 flex cursor-pointer items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700"
         >
           <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
             <path
@@ -176,10 +240,10 @@ function CreateCampaignPage() {
               clipRule="evenodd"
             />
           </svg>
-          Back to edit
+          Back to Campaigns
         </button>
 
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Preview your campaign</h1>
             <p className="mt-1 text-sm text-slate-500">This is how it will look to potential supporters.</p>
@@ -188,51 +252,55 @@ function CreateCampaignPage() {
             <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
               <path d="M12 2 2 7v6c0 5 4.5 8 10 9 5.5-1 10-4 10-9V7l-10-5Z" />
             </svg>
-            Draft — not published yet
+            {campaignPreview.status === 'draft' ? 'Draft — not published yet' : campaignPreview.status}
           </span>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          {coverPhotoPreview ? (
-            <img src={coverPhotoPreview} alt="Cover" className="aspect-[16/9] w-full object-cover" />
-          ) : (
-            <div className="flex aspect-[16/9] w-full items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-emerald-50 text-sm font-medium text-indigo-300">
-              No cover photo
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <div className="flex flex-col gap-6 lg:col-span-2">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              {previewCover ? (
+                <img src={previewCover.url} alt="Cover" className="aspect-[16/9] w-full object-cover" />
+              ) : (
+                <div className="flex aspect-[16/9] w-full items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-emerald-50 text-sm font-medium text-indigo-300">
+                  No cover photo
+                </div>
+              )}
             </div>
-          )}
 
-          <div className="flex flex-col gap-4 p-6 sm:p-8">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
-                {country}
+                {campaignPreview.country}
               </span>
               <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                For {fundraisingFor.toLowerCase()}
+                For {campaignPreview.fundraisingFor.toLowerCase()}
               </span>
             </div>
 
-            <h2 className="text-xl font-bold text-slate-900">{title || 'Untitled campaign'}</h2>
-            <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600">{description}</p>
+            <h2 className="text-2xl font-bold text-slate-900">{campaignPreview.title || 'Untitled campaign'}</h2>
+            <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600">
+              {campaignPreview.description}
+            </p>
+          </div>
 
-            <div className="mt-2 flex items-center justify-between rounded-xl bg-slate-50 px-5 py-4">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Funding target</p>
-                <p className="mt-1 text-2xl font-bold text-slate-900">{formatEthDisplay(target)} ETH</p>
+          <div className="flex flex-col gap-4 self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:sticky lg:top-24">
+            <div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full w-0 rounded-full bg-indigo-600" />
               </div>
-              <div className="h-10 w-px bg-slate-200" />
-              <div className="text-right">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Raised so far</p>
-                <p className="mt-1 text-2xl font-bold text-slate-900">0 ETH</p>
-              </div>
+              <p className="mt-3 text-lg font-semibold text-slate-900">0 ETH raised</p>
+              <p className="text-sm text-slate-500">of {formatEthDisplay(campaignPreview.targetEth)} ETH goal</p>
+            </div>
+
+            <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
+              <Button onClick={() => navigate('/my-campaigns')} className="justify-center py-3 text-base">
+                Publish
+              </Button>
+              <Button variant="secondary" onClick={() => setStep('form')} className="justify-center">
+                Edit details
+              </Button>
             </div>
           </div>
-        </div>
-
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button variant="secondary" onClick={() => setStep('form')}>
-            Edit details
-          </Button>
-          <Button onClick={() => navigate('/my-campaigns')}>Looks good, continue</Button>
         </div>
       </div>
     )
@@ -347,7 +415,10 @@ function CreateCampaignPage() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Cover photo" description="A clear, high-quality image helps your campaign stand out.">
+          <SectionCard
+            title="Cover photo"
+            description="A clear, high-quality image helps your campaign stand out. At least one image is required."
+          >
             <label
               htmlFor="coverPhoto"
               onDragOver={(e) => {
@@ -356,12 +427,36 @@ function CreateCampaignPage() {
               }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
-              className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition ${
+              className={`relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 text-center transition ${
                 isDragging ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 bg-slate-50 hover:border-indigo-300 hover:bg-indigo-50/50'
               }`}
             >
               {coverPhotoPreview ? (
-                <img src={coverPhotoPreview} alt="Cover preview" className="aspect-video w-full max-w-sm rounded-lg object-cover shadow-sm" />
+                <div className="relative w-full max-w-sm">
+                  <img
+                    src={coverPhotoPreview}
+                    alt="Cover preview"
+                    className="aspect-video w-full rounded-lg object-cover shadow-sm"
+                  />
+                  {isUploadingImage && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-slate-900/60">
+                      <Spinner />
+                      <span className="text-xs font-medium text-white">Uploading...</span>
+                    </div>
+                  )}
+                  {!isUploadingImage && coverAsset && (
+                    <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-1 text-xs font-medium text-white">
+                      <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3">
+                        <path
+                          fillRule="evenodd"
+                          d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0l-3.5-3.5a1 1 0 1 1 1.4-1.4l2.8 2.8 6.8-6.8a1 1 0 0 1 1.4 0Z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      Uploaded
+                    </span>
+                  )}
+                </div>
               ) : (
                 <>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-9 w-9 text-slate-400">
@@ -378,25 +473,34 @@ function CreateCampaignPage() {
                   <span className={hintClasses}>PNG or JPG, up to 10MB</span>
                 </>
               )}
-              <input id="coverPhoto" type="file" accept="image/*" onChange={handleCoverPhotoChange} className="hidden" />
+              <input
+                id="coverPhoto"
+                type="file"
+                accept="image/*"
+                onChange={handleCoverPhotoChange}
+                disabled={isUploadingImage}
+                className="hidden"
+              />
             </label>
-            {coverPhoto && (
+
+            {uploadError && <p className="text-xs font-medium text-rose-500">{uploadError}</p>}
+
+            {coverPhotoPreview && !isUploadingImage && (
               <button
                 type="button"
-                onClick={() => {
-                  setCoverPhoto(null)
-                  setCoverPhotoPreview('')
-                }}
-                className="self-start text-xs font-medium text-rose-500 hover:text-rose-600"
+                onClick={handleRemovePhoto}
+                className="self-start cursor-pointer text-xs font-medium text-rose-500 hover:text-rose-600"
               >
                 Remove photo
               </button>
             )}
           </SectionCard>
 
+          {submitError && <p className="text-sm font-medium text-rose-500">{submitError}</p>}
+
           <div className="flex justify-end">
-            <Button type="submit" className="px-8 py-3 text-base">
-              Save &amp; Preview
+            <Button type="submit" className="px-8 py-3 text-base" disabled={isUploadingImage || isSubmitting}>
+              {isSubmitting ? 'Creating...' : 'Preview'}
             </Button>
           </div>
         </div>
