@@ -53,7 +53,11 @@ function MyCampaignsPage() {
         <p className="text-sm text-slate-500">Loading your campaigns...</p>
       ) : (
         <>
-          <CampaignGrid campaigns={campaigns} onSelect={() => {}} showOwner={false} />
+          <CampaignGrid
+            campaigns={campaigns}
+            onSelect={(id) => navigate(`/my-campaigns/${id}`)}
+            showOwner={false}
+          />
 
           <Pagination
             offset={offset}

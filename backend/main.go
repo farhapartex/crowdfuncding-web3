@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -27,15 +27,19 @@ import (
 const maxAssetUploadSize = 10 * 1024 * 1024
 
 type CampaignResponse struct {
-	ID           uint64 `json:"id"`
-	Owner        string `json:"owner"`
-	Title        string `json:"title"`
-	Description  string `json:"description"`
-	Goal         string `json:"goal"`
-	Deadline     string `json:"deadline"`
-	AmountRaised string `json:"amountRaised"`
-	Withdrawn    bool   `json:"withdrawn"`
-	Status       string `json:"status"`
+	ID                string `json:"id"`
+	OnChainCampaignID uint64 `json:"onChainCampaignId"`
+	Owner             string `json:"owner"`
+	Title             string `json:"title"`
+	Description       string `json:"description"`
+	Goal              string `json:"goal"`
+	Deadline          string `json:"deadline"`
+	AmountRaised      string `json:"amountRaised"`
+	Withdrawn         bool   `json:"withdrawn"`
+	Status            string `json:"status"`
+	Country           string `json:"country"`
+	Category          string `json:"category"`
+	CoverURL          string `json:"coverUrl"`
 }
 
 func campaignStatus(campaign contract.Campaign) string {
@@ -48,17 +52,30 @@ func campaignStatus(campaign contract.Campaign) string {
 	return "Active"
 }
 
-func toCampaignResponse(id uint64, campaign contract.Campaign) CampaignResponse {
+func toCampaignResponse(maskedID string, onChainID uint64, campaign contract.Campaign, dbCampaign *models.Campaign, coverURL string) CampaignResponse {
+	description := campaign.Description
+	country := ""
+	category := ""
+	if dbCampaign != nil {
+		description = dbCampaign.Description
+		country = dbCampaign.Country
+		category = dbCampaign.Category
+	}
+
 	return CampaignResponse{
-		ID:           id,
-		Owner:        campaign.Owner.Hex(),
-		Title:        campaign.Title,
-		Description:  campaign.Description,
-		Goal:         campaign.Goal.String(),
-		Deadline:     campaign.Deadline.String(),
-		AmountRaised: campaign.AmountRaised.String(),
-		Withdrawn:    campaign.Withdrawn,
-		Status:       campaignStatus(campaign),
+		ID:                maskedID,
+		OnChainCampaignID: onChainID,
+		Owner:             campaign.Owner.Hex(),
+		Title:             campaign.Title,
+		Description:       description,
+		Goal:              campaign.Goal.String(),
+		Deadline:          campaign.Deadline.String(),
+		AmountRaised:      campaign.AmountRaised.String(),
+		Withdrawn:         campaign.Withdrawn,
+		Status:            campaignStatus(campaign),
+		Country:           country,
+		Category:          category,
+		CoverURL:          coverURL,
 	}
 }
 
@@ -76,15 +93,21 @@ func main() {
 	postgresPort := os.Getenv("POSTGRES_PORT")
 	auth0Domain := os.Getenv("AUTH0_APP_DOMAIN")
 	auth0Audience := os.Getenv("AUTH0_AUDIENCE")
+	scopeMaskSecret := os.Getenv("SCOPE_MASK_SECRET")
 	if rpcURL == "" || contractAddress == "" || jwtSecret == "" ||
 		postgresUser == "" || postgresPassword == "" || postgresDB == "" || postgresPort == "" ||
-		auth0Domain == "" || auth0Audience == "" {
-		log.Fatal("RPC_URL, CONTRACT_ADDRESS, JWT_SECRET, POSTGRES_*, and AUTH0_* variables must be set")
+		auth0Domain == "" || auth0Audience == "" || scopeMaskSecret == "" {
+		log.Fatal("RPC_URL, CONTRACT_ADDRESS, JWT_SECRET, POSTGRES_*, AUTH0_*, and SCOPE_MASK_SECRET variables must be set")
 	}
 
 	auth0KeyFunc, err := newAuth0KeyFunc(auth0Domain)
 	if err != nil {
 		log.Fatalf("failed to load auth0 jwks: %v", err)
+	}
+
+	idMasker, err := newIDMasker(scopeMaskSecret)
+	if err != nil {
+		log.Fatalf("failed to init id masker: %v", err)
 	}
 
 	r2AccountID := os.Getenv("R2_ACCOUNT_ID")
@@ -342,12 +365,20 @@ func main() {
 
 		items := make([]gin.H, len(campaigns))
 		for i, campaign := range campaigns {
+			maskedID, err := maskID(idMasker, campaign.ID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
 			items[i] = gin.H{
-				"id":             campaign.ID,
+				"id":             maskedID,
 				"title":          campaign.Title,
 				"description":    campaign.Description,
 				"targetEth":      campaign.TargetEth,
 				"country":        campaign.Country,
+				"category":       campaign.Category,
+				"durationDays":   campaign.DurationDays,
 				"fundraisingFor": campaign.FundraisingFor,
 				"status":         campaign.Status,
 				"coverUrl":       coverURLs[campaign.ID],
@@ -366,14 +397,20 @@ func main() {
 	api.POST("/my-campaigns", auth0Middleware(auth0KeyFunc, auth0Domain, auth0Audience), func(c *gin.Context) {
 		var req struct {
 			Country        string   `json:"country" binding:"required"`
+			Category       string   `json:"category" binding:"required"`
 			Title          string   `json:"title" binding:"required"`
 			Description    string   `json:"description"`
 			TargetEth      string   `json:"targetEth" binding:"required"`
+			DurationDays   uint32   `json:"durationDays" binding:"required,min=1,max=365"`
 			FundraisingFor string   `json:"fundraisingFor" binding:"required"`
 			AssetIDs       []uint64 `json:"assetIds" binding:"required,min=1"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "at least one image is required"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing or invalid campaign fields"})
+			return
+		}
+		if !models.IsValidCampaignCategory(req.Category) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category"})
 			return
 		}
 
@@ -395,7 +432,7 @@ func main() {
 			}
 		}
 
-		campaign, err := models.CreateCampaign(gormDB, sub, req.Country, req.Title, req.Description, req.TargetEth, req.FundraisingFor)
+		campaign, err := models.CreateCampaign(gormDB, sub, req.Country, req.Category, req.Title, req.Description, req.TargetEth, req.DurationDays, req.FundraisingFor)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -406,11 +443,29 @@ func main() {
 			return
 		}
 
-		c.JSON(http.StatusCreated, campaign)
+		maskedID, err := maskID(idMasker, campaign.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"id":             maskedID,
+			"ownerSub":       campaign.OwnerSub,
+			"country":        campaign.Country,
+			"category":       campaign.Category,
+			"title":          campaign.Title,
+			"description":    campaign.Description,
+			"targetEth":      campaign.TargetEth,
+			"durationDays":   campaign.DurationDays,
+			"fundraisingFor": campaign.FundraisingFor,
+			"status":         campaign.Status,
+			"createdAt":      campaign.CreatedAt,
+		})
 	})
 
 	api.GET("/my-campaigns/:id", auth0Middleware(auth0KeyFunc, auth0Domain, auth0Audience), func(c *gin.Context) {
-		campaignID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		campaignID, err := unmaskID(idMasker, c.Param("id"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid campaign id"})
 			return
@@ -436,13 +491,21 @@ func main() {
 			return
 		}
 
+		maskedID, err := maskID(idMasker, campaign.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
-			"id":                campaign.ID,
+			"id":                maskedID,
 			"ownerSub":          campaign.OwnerSub,
 			"country":           campaign.Country,
+			"category":          campaign.Category,
 			"title":             campaign.Title,
 			"description":       campaign.Description,
 			"targetEth":         campaign.TargetEth,
+			"durationDays":      campaign.DurationDays,
 			"fundraisingFor":    campaign.FundraisingFor,
 			"status":            campaign.Status,
 			"walletAddress":     campaign.WalletAddress,
@@ -450,6 +513,136 @@ func main() {
 			"publishedAt":       campaign.PublishedAt,
 			"createdAt":         campaign.CreatedAt,
 			"assets":            assets,
+		})
+	})
+
+	api.DELETE("/my-campaigns/:id", auth0Middleware(auth0KeyFunc, auth0Domain, auth0Audience), func(c *gin.Context) {
+		campaignID, err := unmaskID(idMasker, c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid campaign id"})
+			return
+		}
+
+		campaign, err := models.GetCampaignByID(gormDB, campaignID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if campaign == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "campaign not found"})
+			return
+		}
+		if campaign.OwnerSub != c.GetString("sub") {
+			c.JSON(http.StatusForbidden, gin.H{"error": "not the owner of this campaign"})
+			return
+		}
+		if campaign.Status != models.CampaignStatusDraft {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "only draft campaigns can be deleted"})
+			return
+		}
+
+		orphanAssets, err := models.GetOrphanableAssetsForCampaign(gormDB, campaign.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		orphanAssetIDs := make([]uint64, len(orphanAssets))
+		for i, asset := range orphanAssets {
+			orphanAssetIDs[i] = asset.ID
+		}
+
+		if err := models.DeleteCampaign(gormDB, campaign.ID, orphanAssetIDs); err != nil {
+			if errors.Is(err, models.ErrCampaignNotDraft) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "only draft campaigns can be deleted"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		for _, asset := range orphanAssets {
+			if err := deleteObjectFromR2(c.Request.Context(), r2Client, asset.Bucket, asset.ObjectKey); err != nil {
+				log.Printf("failed to delete r2 object %s/%s: %v", asset.Bucket, asset.ObjectKey, err)
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{"success": true})
+	})
+
+	api.POST("/my-campaigns/:id/publish", auth0Middleware(auth0KeyFunc, auth0Domain, auth0Audience), func(c *gin.Context) {
+		campaignID, err := unmaskID(idMasker, c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid campaign id"})
+			return
+		}
+
+		var req struct {
+			WalletAddress     string `json:"walletAddress" binding:"required"`
+			OnChainCampaignID uint64 `json:"onChainCampaignId"`
+			TxHash            string `json:"txHash"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "walletAddress and onChainCampaignId are required"})
+			return
+		}
+
+		campaign, err := models.GetCampaignByID(gormDB, campaignID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if campaign == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "campaign not found"})
+			return
+		}
+		if campaign.OwnerSub != c.GetString("sub") {
+			c.JSON(http.StatusForbidden, gin.H{"error": "not the owner of this campaign"})
+			return
+		}
+		if campaign.Status != models.CampaignStatusDraft {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "only draft campaigns can be published"})
+			return
+		}
+
+		onChainCampaign, err := crowdFunding.GetCampaign(nil, new(big.Int).SetUint64(req.OnChainCampaignID))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "could not find this campaign on-chain"})
+			return
+		}
+		if !strings.EqualFold(onChainCampaign.Owner.Hex(), req.WalletAddress) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "on-chain campaign owner does not match the provided wallet address"})
+			return
+		}
+
+		updated, err := models.PublishCampaign(gormDB, campaign.ID, req.WalletAddress, req.OnChainCampaignID)
+		if err != nil {
+			if errors.Is(err, models.ErrCampaignNotDraft) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "only draft campaigns can be published"})
+				return
+			}
+			if errors.Is(err, models.ErrOnChainCampaignAlreadyLinked) {
+				c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		maskedID, err := maskID(idMasker, updated.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		log.Printf("campaign %d published on-chain as %d (tx %s)", updated.ID, req.OnChainCampaignID, req.TxHash)
+
+		c.JSON(http.StatusOK, gin.H{
+			"id":                maskedID,
+			"status":            updated.Status,
+			"walletAddress":     updated.WalletAddress,
+			"onChainCampaignId": updated.OnChainCampaignID,
+			"publishedAt":       updated.PublishedAt,
 		})
 	})
 
@@ -464,65 +657,130 @@ func main() {
 	})
 
 	api.GET("/campaigns/count", func(c *gin.Context) {
-		count, err := crowdFunding.CampaignCount(nil)
+		category := c.Query("category")
+		if category != "" && !models.IsValidCampaignCategory(category) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category"})
+			return
+		}
+
+		total, err := models.CountPublishedCampaigns(gormDB, category)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"count": count.String()})
+		c.JSON(http.StatusOK, gin.H{"count": total})
 	})
 
 	api.GET("/campaigns", func(c *gin.Context) {
-		offset, err := strconv.ParseUint(c.DefaultQuery("offset", "0"), 10, 64)
+		pagination, err := parsePagination(c)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid offset"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		limit, err := strconv.ParseUint(c.DefaultQuery("limit", "20"), 10, 64)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid limit"})
+		category := c.Query("category")
+		if category != "" && !models.IsValidCampaignCategory(category) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category"})
 			return
 		}
 
-		campaigns, err := crowdFunding.GetCampaigns(nil, new(big.Int).SetUint64(offset), new(big.Int).SetUint64(limit))
+		dbCampaigns, total, err := models.ListPublishedCampaigns(gormDB, category, pagination.Offset, pagination.Limit)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		response := make([]CampaignResponse, len(campaigns))
-		for i, campaign := range campaigns {
-			response[i] = toCampaignResponse(offset+uint64(i), campaign)
+		campaignIDs := make([]uint64, len(dbCampaigns))
+		for i, dbCampaign := range dbCampaigns {
+			campaignIDs[i] = dbCampaign.ID
 		}
 
-		c.JSON(http.StatusOK, response)
+		coverURLs, err := models.GetCoverAssetsForCampaigns(gormDB, campaignIDs)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		items := make([]CampaignResponse, 0, len(dbCampaigns))
+		for _, dbCampaign := range dbCampaigns {
+			if dbCampaign.OnChainCampaignID == nil {
+				continue
+			}
+
+			onChainID := *dbCampaign.OnChainCampaignID
+			chainCampaign, err := crowdFunding.GetCampaign(nil, new(big.Int).SetUint64(onChainID))
+			if err != nil {
+				continue
+			}
+
+			maskedID, err := maskID(idMasker, dbCampaign.ID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			items = append(items, toCampaignResponse(maskedID, onChainID, chainCampaign, &dbCampaign, coverURLs[dbCampaign.ID]))
+		}
+
+		c.JSON(http.StatusOK, PaginatedResponse{
+			Items:  items,
+			Total:  total,
+			Offset: pagination.Offset,
+			Limit:  pagination.Limit,
+		})
 	})
 
 	api.GET("/campaigns/:id", func(c *gin.Context) {
-		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		dbID, err := unmaskID(idMasker, c.Param("id"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid campaign id"})
 			return
 		}
 
-		campaign, err := crowdFunding.GetCampaign(nil, new(big.Int).SetUint64(id))
+		dbCampaign, err := models.GetCampaignByID(gormDB, dbID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if dbCampaign == nil || dbCampaign.Status != models.CampaignStatusPublished || dbCampaign.OnChainCampaignID == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "campaign not found"})
+			return
+		}
+
+		onChainID := *dbCampaign.OnChainCampaignID
+		chainCampaign, err := crowdFunding.GetCampaign(nil, new(big.Int).SetUint64(onChainID))
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusOK, toCampaignResponse(id, campaign))
+		coverURLs, err := models.GetCoverAssetsForCampaigns(gormDB, []uint64{dbCampaign.ID})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, toCampaignResponse(c.Param("id"), onChainID, chainCampaign, dbCampaign, coverURLs[dbCampaign.ID]))
 	})
 
 	api.GET("/campaigns/:id/contributors", func(c *gin.Context) {
-		id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		dbID, err := unmaskID(idMasker, c.Param("id"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid campaign id"})
 			return
 		}
 
-		summaries, err := models.GetContributorsForCampaign(gormDB, id)
+		dbCampaign, err := models.GetCampaignByID(gormDB, dbID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if dbCampaign == nil || dbCampaign.OnChainCampaignID == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "campaign not found"})
+			return
+		}
+
+		summaries, err := models.GetContributorsForCampaign(gormDB, *dbCampaign.OnChainCampaignID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return

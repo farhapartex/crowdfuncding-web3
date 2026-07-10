@@ -9,6 +9,7 @@ import CampaignDetailsPage from './pages/CampaignDetailsPage'
 import CampaignManagePage from './pages/CampaignManagePage'
 import ProfilePage from './pages/ProfilePage'
 import MyCampaignsPage from './pages/MyCampaignsPage'
+import MyCampaignDetailsPage from './pages/MyCampaignDetailsPage'
 import CreateCampaignPage from './pages/CreateCampaignPage'
 import HomePage from './landing/HomePage'
 import AboutUsPage from './landing/AboutUsPage'
@@ -18,6 +19,7 @@ const SESSION_TOKEN_KEY = 'sessionToken'
 const TOAST_DURATION_MS = 4000
 
 const GuardedMyCampaignsPage = withAuthGuard(MyCampaignsPage)
+const GuardedMyCampaignDetailsPage = withAuthGuard(MyCampaignDetailsPage)
 const GuardedCreateCampaignPage = withAuthGuard(CreateCampaignPage)
 const GuardedProfilePage = withAuthGuard(ProfilePage)
 
@@ -58,7 +60,7 @@ function App() {
   async function connectWallet() {
     if (!window.ethereum) {
       setError('MetaMask is not installed')
-      return
+      return null
     }
 
     try {
@@ -68,8 +70,11 @@ function App() {
       setProvider(browserProvider)
       setAccount(accounts[0])
       setError(null)
+
+      return { provider: browserProvider, account: accounts[0] }
     } catch (err) {
       setError(err.message)
+      return null
     }
   }
 
@@ -143,7 +148,28 @@ function App() {
           />
           <Route path="/about" element={<AboutUsPage />} />
           <Route path="/my-campaigns" element={<GuardedMyCampaignsPage />} />
-          <Route path="/create-campaign" element={<GuardedCreateCampaignPage />} />
+          <Route
+            path="/my-campaigns/:id"
+            element={
+              <GuardedMyCampaignDetailsPage
+                provider={provider}
+                account={account}
+                onConnectWallet={connectWallet}
+                showToast={showToast}
+              />
+            }
+          />
+          <Route
+            path="/create-campaign"
+            element={
+              <GuardedCreateCampaignPage
+                provider={provider}
+                account={account}
+                onConnectWallet={connectWallet}
+                showToast={showToast}
+              />
+            }
+          />
           <Route
             path="/profile"
             element={

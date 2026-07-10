@@ -2,7 +2,17 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 import { uploadAsset, createMyCampaign, fetchMyCampaign } from '../lib/api'
+import { formatEthDisplay } from '../utils/format'
+import { usePublishCampaign } from '../hooks/usePublishCampaign'
 import Button from '../components/ui/Button'
+import CampaignPreview from '../components/CampaignPreview'
+
+const PUBLISH_LABELS = {
+  connecting: 'Connecting wallet...',
+  signing: 'Confirm in wallet...',
+  confirming: 'Waiting for confirmation...',
+  linking: 'Finalizing...',
+}
 
 const COUNTRIES = [
   'United States',
@@ -19,6 +29,15 @@ const COUNTRIES = [
 ]
 
 const FUNDRAISING_FOR_OPTIONS = ['Yourself', 'Someone else', 'Charity']
+
+const CATEGORIES = [
+  'Medical & Health',
+  'Education',
+  'Community & Environment',
+  'Animals & Pets',
+  'Emergency Relief',
+  'Other',
+]
 
 const inputClasses =
   'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500'
@@ -67,12 +86,6 @@ function StepPill({ index, label, active, done }) {
   )
 }
 
-function formatEthDisplay(value) {
-  const parsed = Number(value)
-  if (!value || Number.isNaN(parsed)) return '0'
-  return parsed.toLocaleString(undefined, { maximumFractionDigits: 4 })
-}
-
 function Spinner() {
   return (
     <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 animate-spin text-white">
@@ -82,7 +95,7 @@ function Spinner() {
   )
 }
 
-function LivePreviewCard({ title, description, target, country, fundraisingFor, coverPhotoPreview }) {
+function LivePreviewCard({ title, description, target, country, category, durationDays, fundraisingFor, coverPhotoPreview }) {
   return (
     <div className="sticky top-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       {coverPhotoPreview ? (
@@ -101,9 +114,14 @@ function LivePreviewCard({ title, description, target, country, fundraisingFor, 
       )}
 
       <div className="flex flex-col gap-3 p-5">
-        <span className="inline-flex w-fit items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
-          {country}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
+            {country}
+          </span>
+          <span className="inline-flex items-center rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-600">
+            {category}
+          </span>
+        </div>
 
         <h3 className="text-lg font-semibold leading-snug text-slate-900">
           {title || 'Your campaign title will appear here'}
@@ -123,24 +141,70 @@ function LivePreviewCard({ title, description, target, country, fundraisingFor, 
           </div>
         </div>
 
-        <div className="flex items-center gap-2 border-t border-slate-100 pt-3 text-xs text-slate-500">
-          <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-slate-400">
-            <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.24-8 5v1a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1c0-2.76-3.58-5-8-5Z" />
-          </svg>
-          Fundraising for {fundraisingFor.toLowerCase()}
+        <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500">
+          <div className="flex items-center gap-2">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-slate-400">
+              <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.24-8 5v1a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-1c0-2.76-3.58-5-8-5Z" />
+            </svg>
+            Fundraising for {fundraisingFor.toLowerCase()}
+          </div>
+          <div className="flex items-center gap-2">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-slate-400">
+              <path
+                fillRule="evenodd"
+                d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5a1 1 0 1 0-2 0v5a1 1 0 0 0 .5.87l3.5 2a1 1 0 0 0 1-1.74L13 11.4V7Z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Runs for {durationDays || 0} days once published
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function CreateCampaignPage() {
+function CreateCampaignPreviewStep({ campaign, provider, account, onConnectWallet, showToast, onBack, onEdit, onRefresh }) {
+  const { getAccessTokenSilently } = useAuth0()
+
+  const publishHook = usePublishCampaign({
+    campaign,
+    provider,
+    account,
+    onConnectWallet,
+    onPublished: async () => {
+      showToast?.('Your campaign is live!')
+      const accessToken = await getAccessTokenSilently()
+      const updated = await fetchMyCampaign(accessToken, campaign.id)
+      onRefresh(updated)
+    },
+  })
+
+  const isPublishing = ['connecting', 'signing', 'confirming', 'linking'].includes(publishHook.phase)
+  const publishLabel = PUBLISH_LABELS[publishHook.phase] || (publishHook.pendingLink ? 'Finish Publishing' : 'Publish')
+
+  return (
+    <CampaignPreview
+      campaign={campaign}
+      onBack={onBack}
+      onEdit={onEdit}
+      onPublish={publishHook.pendingLink ? publishHook.retryLinking : publishHook.publish}
+      publishLabel={publishLabel}
+      isPublishing={isPublishing}
+      publishError={publishHook.error}
+    />
+  )
+}
+
+function CreateCampaignPage({ provider, account, onConnectWallet, showToast }) {
   const navigate = useNavigate()
   const { getAccessTokenSilently } = useAuth0()
   const [step, setStep] = useState('form')
   const [country, setCountry] = useState(COUNTRIES[0])
+  const [category, setCategory] = useState(CATEGORIES[0])
   const [title, setTitle] = useState('')
   const [target, setTarget] = useState('')
+  const [durationDays, setDurationDays] = useState('30')
   const [description, setDescription] = useState('')
   const [fundraisingFor, setFundraisingFor] = useState(FUNDRAISING_FOR_OPTIONS[0])
   const [coverPhotoPreview, setCoverPhotoPreview] = useState('')
@@ -207,9 +271,11 @@ function CreateCampaignPage() {
       const accessToken = await getAccessTokenSilently()
       const created = await createMyCampaign(accessToken, {
         country,
+        category,
         title,
         description,
         targetEth: target,
+        durationDays: Number(durationDays),
         fundraisingFor,
         assetIds: [coverAsset.id],
       })
@@ -224,85 +290,17 @@ function CreateCampaignPage() {
   }
 
   if (step === 'preview' && campaignPreview) {
-    const previewCover = campaignPreview.assets?.find((asset) => asset.isCover) || campaignPreview.assets?.[0]
-
     return (
-      <div className="mx-auto max-w-5xl">
-        <button
-          type="button"
-          onClick={() => navigate('/my-campaigns')}
-          className="mb-6 flex cursor-pointer items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700"
-        >
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path
-              fillRule="evenodd"
-              d="M9.7 4.3a1 1 0 0 1 0 1.4L6.42 9h9.58a1 1 0 1 1 0 2H6.42l3.3 3.3a1 1 0 1 1-1.42 1.4l-5-5a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 1.4 0Z"
-              clipRule="evenodd"
-            />
-          </svg>
-          Back to Campaigns
-        </button>
-
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Preview your campaign</h1>
-            <p className="mt-1 text-sm text-slate-500">This is how it will look to potential supporters.</p>
-          </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-600">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
-              <path d="M12 2 2 7v6c0 5 4.5 8 10 9 5.5-1 10-4 10-9V7l-10-5Z" />
-            </svg>
-            {campaignPreview.status === 'draft' ? 'Draft — not published yet' : campaignPreview.status}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          <div className="flex flex-col gap-6 lg:col-span-2">
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-              {previewCover ? (
-                <img src={previewCover.url} alt="Cover" className="aspect-[16/9] w-full object-cover" />
-              ) : (
-                <div className="flex aspect-[16/9] w-full items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-emerald-50 text-sm font-medium text-indigo-300">
-                  No cover photo
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
-                {campaignPreview.country}
-              </span>
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                For {campaignPreview.fundraisingFor.toLowerCase()}
-              </span>
-            </div>
-
-            <h2 className="text-2xl font-bold text-slate-900">{campaignPreview.title || 'Untitled campaign'}</h2>
-            <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600">
-              {campaignPreview.description}
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-4 self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:sticky lg:top-24">
-            <div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full w-0 rounded-full bg-indigo-600" />
-              </div>
-              <p className="mt-3 text-lg font-semibold text-slate-900">0 ETH raised</p>
-              <p className="text-sm text-slate-500">of {formatEthDisplay(campaignPreview.targetEth)} ETH goal</p>
-            </div>
-
-            <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
-              <Button onClick={() => navigate('/my-campaigns')} className="justify-center py-3 text-base">
-                Publish
-              </Button>
-              <Button variant="secondary" onClick={() => setStep('form')} className="justify-center">
-                Edit details
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <CreateCampaignPreviewStep
+        campaign={campaignPreview}
+        provider={provider}
+        account={account}
+        onConnectWallet={onConnectWallet}
+        showToast={showToast}
+        onBack={() => navigate('/my-campaigns')}
+        onEdit={() => setStep('form')}
+        onRefresh={setCampaignPreview}
+      />
     )
   }
 
@@ -334,6 +332,24 @@ function CreateCampaignPage() {
                   className={inputClasses}
                 >
                   {COUNTRIES.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="category" className={labelClasses}>
+                  Category
+                </label>
+                <select
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className={inputClasses}
+                >
+                  {CATEGORIES.map((option) => (
                     <option key={option} value={option}>
                       {option}
                     </option>
@@ -397,6 +413,30 @@ function CreateCampaignPage() {
                 </span>
               </div>
               <span className={hintClasses}>This is the amount you're aiming to raise, in ETH.</span>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="durationDays" className={labelClasses}>
+                Campaign duration
+              </label>
+              <div className="relative">
+                <input
+                  id="durationDays"
+                  type="number"
+                  min="1"
+                  max="365"
+                  step="1"
+                  value={durationDays}
+                  onChange={(e) => setDurationDays(e.target.value)}
+                  placeholder="30"
+                  required
+                  className={`${inputClasses} pr-16`}
+                />
+                <span className="absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-slate-400">
+                  days
+                </span>
+              </div>
+              <span className={hintClasses}>How many days should this campaign run once published (1-365).</span>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -511,6 +551,8 @@ function CreateCampaignPage() {
             description={description}
             target={target}
             country={country}
+            category={category}
+            durationDays={durationDays}
             fundraisingFor={fundraisingFor}
             coverPhotoPreview={coverPhotoPreview}
           />

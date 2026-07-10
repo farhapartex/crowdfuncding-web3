@@ -1,23 +1,17 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 const API_V1_URL = `${API_BASE_URL}/api/v1`
 
-export async function fetchCampaigns({ offset = 0, limit = 20 } = {}) {
-  const [campaignsResponse, countResponse] = await Promise.all([
-    fetch(`${API_V1_URL}/campaigns?offset=${offset}&limit=${limit}`),
-    fetch(`${API_V1_URL}/campaigns/count`),
-  ])
+export async function fetchCampaigns({ offset = 0, limit = 20, category = '' } = {}) {
+  const params = new URLSearchParams({ offset, limit })
+  if (category) params.set('category', category)
 
-  if (!campaignsResponse.ok) {
-    throw new Error(`Failed to load campaigns (status ${campaignsResponse.status})`)
-  }
-  if (!countResponse.ok) {
-    throw new Error(`Failed to load campaign count (status ${countResponse.status})`)
+  const response = await fetch(`${API_V1_URL}/campaigns?${params.toString()}`)
+  if (!response.ok) {
+    throw new Error(`Failed to load campaigns (status ${response.status})`)
   }
 
-  const campaigns = await campaignsResponse.json()
-  const { count } = await countResponse.json()
-
-  return { campaigns, total: Number(count) }
+  const { items, total } = await response.json()
+  return { campaigns: items, total }
 }
 
 export async function fetchCampaign(id) {
@@ -159,6 +153,30 @@ export async function fetchMyCampaign(accessToken, id) {
     throw new Error(`Failed to load campaign (status ${response.status})`)
   }
   return response.json()
+}
+
+export async function publishMyCampaign(accessToken, id, payload) {
+  const response = await fetch(`${API_V1_URL}/my-campaigns/${id}/publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    const { error } = await response.json().catch(() => ({}))
+    throw new Error(error || `Failed to publish campaign (status ${response.status})`)
+  }
+  return response.json()
+}
+
+export async function deleteMyCampaign(accessToken, id) {
+  const response = await fetch(`${API_V1_URL}/my-campaigns/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!response.ok) {
+    const { error } = await response.json().catch(() => ({}))
+    throw new Error(error || `Failed to delete campaign (status ${response.status})`)
+  }
 }
 
 export async function fetchPublicProfile(address) {

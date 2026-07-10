@@ -65,6 +65,46 @@ func GetCoverAssetsForCampaigns(db *gorm.DB, campaignIDs []uint64) (map[uint64]s
 	return result, nil
 }
 
+func GetOrphanableAssetsForCampaign(db *gorm.DB, campaignID uint64) ([]Asset, error) {
+	var assetIDs []uint64
+	if err := db.Model(&CampaignAsset{}).Where("campaign_id = ?", campaignID).Pluck("asset_id", &assetIDs).Error; err != nil {
+		return nil, err
+	}
+	if len(assetIDs) == 0 {
+		return []Asset{}, nil
+	}
+
+	var sharedAssetIDs []uint64
+	err := db.Model(&CampaignAsset{}).
+		Where("asset_id IN ? AND campaign_id != ?", assetIDs, campaignID).
+		Pluck("asset_id", &sharedAssetIDs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	shared := make(map[uint64]bool, len(sharedAssetIDs))
+	for _, id := range sharedAssetIDs {
+		shared[id] = true
+	}
+
+	orphanIDs := make([]uint64, 0, len(assetIDs))
+	for _, id := range assetIDs {
+		if !shared[id] {
+			orphanIDs = append(orphanIDs, id)
+		}
+	}
+	if len(orphanIDs) == 0 {
+		return []Asset{}, nil
+	}
+
+	var assets []Asset
+	if err := db.Where("id IN ?", orphanIDs).Find(&assets).Error; err != nil {
+		return nil, err
+	}
+
+	return assets, nil
+}
+
 func GetCampaignAssets(db *gorm.DB, campaignID uint64) ([]CampaignAssetView, error) {
 	var views []CampaignAssetView
 	err := db.Table("campaign_assets").

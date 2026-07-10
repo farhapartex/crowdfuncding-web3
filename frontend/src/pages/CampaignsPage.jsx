@@ -16,11 +16,15 @@ function CampaignsPage() {
   const [category, setCategory] = useState('All Categories')
 
   useEffect(() => {
-    refreshCampaigns(0)
-  }, [])
+    refreshCampaigns(0, category)
+  }, [category])
 
-  async function refreshCampaigns(targetOffset = offset) {
-    const { campaigns: result, total } = await fetchCampaigns({ offset: targetOffset, limit: PAGE_SIZE })
+  async function refreshCampaigns(targetOffset = offset, targetCategory = category) {
+    const { campaigns: result, total } = await fetchCampaigns({
+      offset: targetOffset,
+      limit: PAGE_SIZE,
+      category: targetCategory === 'All Categories' ? '' : targetCategory,
+    })
     setCampaigns(result)
     setTotalCampaigns(total)
     setOffset(targetOffset)

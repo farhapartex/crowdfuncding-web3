@@ -1,11 +1,10 @@
 const CATEGORIES = [
   'All Categories',
-  'Technology',
+  'Medical & Health',
   'Education',
-  'Health & Medical',
-  'Community',
-  'Arts & Creative',
-  'Charity',
+  'Community & Environment',
+  'Animals & Pets',
+  'Emergency Relief',
   'Other',
 ]
 

@@ -7,6 +7,7 @@ import { shortenAddress, formatEth, formatDate } from '../utils/format'
 import StatusBadge from '../components/ui/StatusBadge'
 import ContributeForm from '../components/ContributeForm'
 import Button from '../components/ui/Button'
+import TabButton from '../components/ui/TabButton'
 
 const SEED_COMMENTS = [
   { id: 1, author: 'Alex Morgan', text: 'This is such a great initiative, happy to support!', postedAt: '2 days ago' },
@@ -52,6 +53,7 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
   const [comments, setComments] = useState(SEED_COMMENTS)
   const [commentText, setCommentText] = useState('')
   const [showCommentForm, setShowCommentForm] = useState(false)
+  const [activeTab, setActiveTab] = useState('story')
   const contributeRef = useRef(null)
 
   useEffect(() => {
@@ -81,7 +83,7 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
 
       const amountInWei = parseEther(amountEth)
 
-      const tx = await crowdFunding.contribute(id, { value: amountInWei })
+      const tx = await crowdFunding.contribute(campaign.onChainCampaignId, { value: amountInWei })
       await tx.wait()
 
       const [updatedCampaign, updatedContributors] = await Promise.all([fetchCampaign(id), fetchContributors(id)])
@@ -136,21 +138,29 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
-          <div className="flex aspect-video w-full items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="h-14 w-14 text-indigo-300"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 16.5V6.75A2.25 2.25 0 0 1 5.25 4.5h13.5A2.25 2.25 0 0 1 21 6.75v9.75M3 16.5l4.72-4.72a1.5 1.5 0 0 1 2.12 0l3.66 3.66a1.5 1.5 0 0 0 2.12 0l1.66-1.66a1.5 1.5 0 0 1 2.12 0L21 16.5M3 16.5V18a2.25 2.25 0 0 0 2.25 2.25h13.5A2.25 2.25 0 0 0 21 18v-1.5"
-              />
-            </svg>
-          </div>
+          {campaign.coverUrl ? (
+            <img
+              src={campaign.coverUrl}
+              alt={campaign.title}
+              className="aspect-video w-full rounded-xl object-cover"
+            />
+          ) : (
+            <div className="flex aspect-video w-full items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-14 w-14 text-indigo-300"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 16.5V6.75A2.25 2.25 0 0 1 5.25 4.5h13.5A2.25 2.25 0 0 1 21 6.75v9.75M3 16.5l4.72-4.72a1.5 1.5 0 0 1 2.12 0l3.66 3.66a1.5 1.5 0 0 0 2.12 0l1.66-1.66a1.5 1.5 0 0 1 2.12 0L21 16.5M3 16.5V18a2.25 2.25 0 0 0 2.25 2.25h13.5A2.25 2.25 0 0 0 21 18v-1.5"
+                />
+              </svg>
+            </div>
+          )}
 
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -171,54 +181,70 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
             </Button>
           </div>
 
-          <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600">{campaign.description}</p>
-
-          <div className="flex flex-col gap-4 border-t border-slate-200 pt-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900">Comments ({comments.length})</h2>
-              {!showCommentForm && (
-                <Button variant="secondary" onClick={() => setShowCommentForm(true)}>
-                  Add Comment
-                </Button>
-              )}
-            </div>
-
-            {showCommentForm && (
-              <form onSubmit={handlePostComment} className="flex flex-col gap-2">
-                <textarea
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Leave a comment of support..."
-                  rows={3}
-                  autoFocus
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
-                />
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="secondary" onClick={() => setShowCommentForm(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Post Comment</Button>
-                </div>
-              </form>
-            )}
-
-            <div className="flex flex-col gap-4">
-              {comments.map((comment) => (
-                <div key={comment.id} className="flex gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-600">
-                    {comment.author.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-slate-900">{comment.author}</span>
-                      <span className="text-xs text-slate-400">{comment.postedAt}</span>
-                    </div>
-                    <p className="text-sm text-slate-600">{comment.text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="flex gap-6 border-b border-slate-200">
+            <TabButton active={activeTab === 'story'} onClick={() => setActiveTab('story')}>
+              Story
+            </TabButton>
+            <TabButton active={activeTab === 'comments'} onClick={() => setActiveTab('comments')}>
+              Comments ({comments.length})
+            </TabButton>
           </div>
+
+          {activeTab === 'story' ? (
+            <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600">{campaign.description}</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-end">
+                {!showCommentForm && (
+                  <Button variant="secondary" onClick={() => setShowCommentForm(true)}>
+                    Add Comment
+                  </Button>
+                )}
+              </div>
+
+              {showCommentForm && (
+                <form onSubmit={handlePostComment} className="flex flex-col gap-2">
+                  <textarea
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Leave a comment of support..."
+                    rows={3}
+                    autoFocus
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="secondary" onClick={() => setShowCommentForm(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">Post Comment</Button>
+                  </div>
+                </form>
+              )}
+
+              <div className="flex flex-col gap-4">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="flex gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-600">
+                      {comment.author.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-900">{comment.author}</span>
+                        <span className="text-xs text-slate-400">{comment.postedAt}</span>
+                      </div>
+                      <p className="text-sm text-slate-600">{comment.text}</p>
+                      <button
+                        type="button"
+                        className="mt-1 self-start cursor-pointer text-xs font-medium text-slate-500 hover:text-indigo-600"
+                      >
+                        Reply
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-4 self-start rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:sticky lg:top-24">

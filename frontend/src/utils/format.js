@@ -11,3 +11,9 @@ export function formatEth(amountInWei) {
 export function formatDate(unixTimestampSeconds) {
   return new Date(Number(unixTimestampSeconds) * 1000).toLocaleString()
 }
+
+export function formatEthDisplay(value) {
+  const parsed = Number(value)
+  if (!value || Number.isNaN(parsed)) return '0'
+  return parsed.toLocaleString(undefined, { maximumFractionDigits: 4 })
+}
