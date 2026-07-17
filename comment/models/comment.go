@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -14,6 +15,25 @@ type Comment struct {
 	Text       string `gorm:"type:text;not null"`
 	ParentID   *string
 	CreatedAt  time.Time
+}
+
+func CreateComment(db *gorm.DB, campaignID, authorSub, authorName, text, parentID string) (*Comment, error) {
+	comment := &Comment{
+		ID:         uuid.NewString(),
+		CampaignID: campaignID,
+		AuthorSub:  authorSub,
+		AuthorName: authorName,
+		Text:       text,
+	}
+	if parentID != "" {
+		comment.ParentID = &parentID
+	}
+
+	if err := db.Create(comment).Error; err != nil {
+		return nil, err
+	}
+
+	return comment, nil
 }
 
 func ListCommentsByCampaign(db *gorm.DB, campaignID string, offset, limit uint64) ([]Comment, int64, error) {

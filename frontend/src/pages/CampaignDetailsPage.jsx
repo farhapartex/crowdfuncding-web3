@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { useAuth0 } from '@auth0/auth0-react'
 import { parseEther } from 'ethers'
-import { fetchCampaign, fetchContributors, fetchPublicProfile, fetchCampaignComments } from '../lib/api'
+import { fetchCampaign, fetchContributors, fetchPublicProfile, fetchCampaignComments, postCampaignComment } from '../lib/api'
 import { getCrowdFundingContract } from '../lib/crowdFundingContract'
+import { useAccessToken } from '../hooks/useAccessToken'
 import { shortenAddress, formatEth, formatDate } from '../utils/format'
 import StatusBadge from '../components/ui/StatusBadge'
 import ContributeForm from '../components/ContributeForm'
+import ShareModal from '../components/ShareModal'
 import Button from '../components/ui/Button'
 import TabButton from '../components/ui/TabButton'
 
@@ -45,6 +48,8 @@ function computeProgressPercent(amountRaised, goal) {
 
 function CampaignDetailsPage({ provider, account, onConnectWallet, setError, showToast }) {
   const { id } = useParams()
+  const { isAuthenticated } = useAuth0()
+  const getAccessToken = useAccessToken()
   const [campaign, setCampaign] = useState(null)
   const [ownerDisplayName, setOwnerDisplayName] = useState('')
   const [contributors, setContributors] = useState([])
@@ -52,8 +57,10 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
   const [comments, setComments] = useState([])
   const [commentText, setCommentText] = useState('')
   const [showCommentForm, setShowCommentForm] = useState(false)
+  const [isPostingComment, setIsPostingComment] = useState(false)
+  const [commentError, setCommentError] = useState(null)
   const [activeTab, setActiveTab] = useState('story')
-  const contributeRef = useRef(null)
+  const [showShareModal, setShowShareModal] = useState(false)
 
   useEffect(() => {
     fetchCampaign(id)
@@ -100,29 +107,24 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
     }
   }
 
-  async function handleShare() {
-    try {
-      await navigator.clipboard.writeText(window.location.href)
-      showToast('Link copied to clipboard!')
-    } catch {
-      setError('Could not copy link')
-    }
-  }
-
-  function handleDonateClick() {
-    contributeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }
-
-  function handlePostComment(e) {
+  async function handlePostComment(e) {
     e.preventDefault()
-    if (!commentText.trim()) return
+    if (!commentText.trim() || isPostingComment) return
 
-    setComments((prev) => [
-      { id: `local-${Date.now()}`, authorName: 'You', text: commentText.trim(), createdAt: Date.now() / 1000 },
-      ...prev,
-    ])
-    setCommentText('')
-    setShowCommentForm(false)
+    setCommentError(null)
+    setIsPostingComment(true)
+
+    try {
+      const accessToken = await getAccessToken()
+      const comment = await postCampaignComment(accessToken, id, commentText.trim())
+      setComments((prev) => [comment, ...prev])
+      setCommentText('')
+      setShowCommentForm(false)
+    } catch (err) {
+      setCommentError(err.message)
+    } finally {
+      setIsPostingComment(false)
+    }
   }
 
   if (!campaign) {
@@ -199,15 +201,17 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
             <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600">{campaign.description}</p>
           ) : (
             <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-end">
-                {!showCommentForm && (
-                  <Button variant="secondary" onClick={() => setShowCommentForm(true)}>
-                    Add Comment
-                  </Button>
-                )}
-              </div>
+              {isAuthenticated && (
+                <div className="flex items-center justify-end">
+                  {!showCommentForm && (
+                    <Button variant="secondary" onClick={() => setShowCommentForm(true)}>
+                      Add Comment
+                    </Button>
+                  )}
+                </div>
+              )}
 
-              {showCommentForm && (
+              {isAuthenticated && showCommentForm && (
                 <form onSubmit={handlePostComment} className="flex flex-col gap-2">
                   <textarea
                     value={commentText}
@@ -215,13 +219,22 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
                     placeholder="Leave a comment of support..."
                     rows={3}
                     autoFocus
+                    disabled={isPostingComment}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
                   />
+                  {commentError && <p className="text-xs font-medium text-rose-500">{commentError}</p>}
                   <div className="flex justify-end gap-2">
-                    <Button type="button" variant="secondary" onClick={() => setShowCommentForm(false)}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => setShowCommentForm(false)}
+                      disabled={isPostingComment}
+                    >
                       Cancel
                     </Button>
-                    <Button type="submit">Post Comment</Button>
+                    <Button type="submit" disabled={isPostingComment}>
+                      {isPostingComment ? 'Posting...' : 'Post Comment'}
+                    </Button>
                   </div>
                 </form>
               )}
@@ -241,12 +254,14 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
                         <span className="text-xs text-slate-400">{formatCommentTimestamp(comment.createdAt)}</span>
                       </div>
                       <p className="text-sm text-slate-600">{comment.text}</p>
-                      <button
-                        type="button"
-                        className="mt-1 self-start cursor-pointer text-xs font-medium text-slate-500 hover:text-indigo-600"
-                      >
-                        Reply
-                      </button>
+                      {isAuthenticated && (
+                        <button
+                          type="button"
+                          className="mt-1 self-start cursor-pointer text-xs font-medium text-slate-500 hover:text-indigo-600"
+                        >
+                          Reply
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -264,15 +279,10 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
             <p className="text-sm text-slate-500">of {formatEth(campaign.goal)} goal</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Button variant="secondary" onClick={handleShare} className="justify-center gap-1.5">
-              <ShareIcon />
-              Share
-            </Button>
-            <Button onClick={handleDonateClick} className="justify-center">
-              Donate
-            </Button>
-          </div>
+          <Button variant="secondary" onClick={() => setShowShareModal(true)} className="justify-center gap-1.5">
+            <ShareIcon />
+            Share
+          </Button>
 
           <div className="flex items-center justify-between text-sm text-slate-500">
             <span>
@@ -283,16 +293,17 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
 
           <p className="text-sm text-slate-500">Ends {formatDate(campaign.deadline)}</p>
 
-          <div ref={contributeRef}>
-            {canContribute ? (
-              account ? (
-                <ContributeForm onContribute={handleContribute} isContributing={isContributing} />
+          <div>
+            {isAuthenticated &&
+              (canContribute ? (
+                account ? (
+                  <ContributeForm onContribute={handleContribute} isContributing={isContributing} />
+                ) : (
+                  <Button onClick={onConnectWallet}>Connect Wallet to Contribute</Button>
+                )
               ) : (
-                <Button onClick={onConnectWallet}>Connect Wallet to Contribute</Button>
-              )
-            ) : (
-              <p className="text-sm text-slate-500">This campaign is no longer accepting contributions.</p>
-            )}
+                <p className="text-sm text-slate-500">This campaign is no longer accepting contributions.</p>
+              ))}
           </div>
 
           {contributors.length > 0 && (
@@ -315,6 +326,15 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
           )}
         </div>
       </div>
+
+      {showShareModal && (
+        <ShareModal
+          url={window.location.href}
+          title={campaign.title}
+          onClose={() => setShowShareModal(false)}
+          showToast={showToast}
+        />
+      )}
     </div>
   )
 }

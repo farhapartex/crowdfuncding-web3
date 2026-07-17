@@ -76,3 +76,31 @@ func (s *CommentService) ListComments(ctx context.Context, campaignID string, of
 
 	return items, resp.Total, nil
 }
+
+func (s *CommentService) PostComment(ctx context.Context, campaignID, authorSub, authorName, text string) (*CampaignComment, error) {
+	resp, err := s.client.PostComment(s.authContext(ctx), &commentpb.PostCommentRequest{
+		CampaignId: campaignID,
+		AuthorSub:  authorSub,
+		AuthorName: authorName,
+		Text:       text,
+	})
+	if err != nil {
+		if status.Code(err) == codes.Unavailable {
+			return nil, NewUnavailableError("comment service is temporarily unavailable, please try again shortly")
+		}
+		if status.Code(err) == codes.InvalidArgument {
+			return nil, NewValidationError(status.Convert(err).Message())
+		}
+		return nil, err
+	}
+
+	return &CampaignComment{
+		ID:         resp.Id,
+		CampaignID: resp.CampaignId,
+		AuthorSub:  resp.AuthorSub,
+		AuthorName: resp.AuthorName,
+		Text:       resp.Text,
+		ParentID:   resp.ParentId,
+		CreatedAt:  resp.CreatedAt,
+	}, nil
+}

@@ -54,6 +54,19 @@ export async function fetchCampaignComments(campaignId, { offset = 0, limit = 20
   return response.json()
 }
 
+export async function postCampaignComment(accessToken, campaignId, text) {
+  const response = await fetch(`${API_V1_URL}/campaigns/${campaignId}/comments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ text }),
+  })
+  if (!response.ok) {
+    const { error } = await response.json().catch(() => ({}))
+    throw new Error(error || `Failed to post comment (status ${response.status})`)
+  }
+  return response.json()
+}
+
 export async function fetchSignInMessage(address) {
   const response = await fetch(`${API_V1_URL}/auth/nonce?address=${address}`)
   if (!response.ok) {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"strings"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,7 +22,30 @@ func NewCommentServer(db *gorm.DB) *CommentServer {
 }
 
 func (s *CommentServer) PostComment(ctx context.Context, req *commentpb.PostCommentRequest) (*commentpb.Comment, error) {
-	return nil, status.Errorf(codes.Unimplemented, "PostComment not implemented yet")
+	if req.CampaignId == "" {
+		return nil, status.Error(codes.InvalidArgument, "campaign_id is required")
+	}
+	if req.AuthorSub == "" {
+		return nil, status.Error(codes.InvalidArgument, "author_sub is required")
+	}
+	text := strings.TrimSpace(req.Text)
+	if text == "" {
+		return nil, status.Error(codes.InvalidArgument, "text is required")
+	}
+
+	comment, err := models.CreateComment(s.db, req.CampaignId, req.AuthorSub, req.AuthorName, text, "")
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create comment: %v", err)
+	}
+
+	return &commentpb.Comment{
+		Id:         comment.ID,
+		CampaignId: comment.CampaignID,
+		AuthorSub:  comment.AuthorSub,
+		AuthorName: comment.AuthorName,
+		Text:       comment.Text,
+		CreatedAt:  comment.CreatedAt.Unix(),
+	}, nil
 }
 
 func (s *CommentServer) ListComments(ctx context.Context, req *commentpb.ListCommentsRequest) (*commentpb.ListCommentsResponse, error) {

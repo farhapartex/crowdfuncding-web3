@@ -27,4 +27,29 @@ func registerCommentRoutes(api *gin.RouterGroup, deps *Dependencies) {
 			Limit:  pagination.Limit,
 		})
 	})
+
+	api.POST("/campaigns/:id/comments", auth0Middleware(deps.Auth0Service), func(c *gin.Context) {
+		var req struct {
+			Text string `json:"text" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "text is required"})
+			return
+		}
+
+		sub := c.GetString("sub")
+
+		authorName := sub
+		if user, err := deps.Auth0Service.GetUser(sub); err == nil && user.DisplayName != "" {
+			authorName = user.DisplayName
+		}
+
+		comment, err := deps.CommentService.PostComment(c.Request.Context(), c.Param("id"), sub, authorName, req.Text)
+		if err != nil {
+			respondError(c, err)
+			return
+		}
+
+		c.JSON(http.StatusCreated, comment)
+	})
 }
