@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"crypto/sha256"
@@ -11,11 +11,20 @@ import (
 
 const baseIDMaskAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-func newIDMasker(secret string) (*sqids.Sqids, error) {
-	return sqids.New(sqids.Options{
+type IDMaskService struct {
+	sqids *sqids.Sqids
+}
+
+func NewIDMaskService(secret string) (*IDMaskService, error) {
+	s, err := sqids.New(sqids.Options{
 		Alphabet:  shuffleAlphabet(baseIDMaskAlphabet, secret),
 		MinLength: 8,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &IDMaskService{sqids: s}, nil
 }
 
 func shuffleAlphabet(alphabet, secret string) string {
@@ -31,12 +40,12 @@ func shuffleAlphabet(alphabet, secret string) string {
 	return string(chars)
 }
 
-func maskID(masker *sqids.Sqids, id uint64) (string, error) {
-	return masker.Encode([]uint64{id})
+func (s *IDMaskService) Mask(id uint64) (string, error) {
+	return s.sqids.Encode([]uint64{id})
 }
 
-func unmaskID(masker *sqids.Sqids, masked string) (uint64, error) {
-	numbers := masker.Decode(masked)
+func (s *IDMaskService) Unmask(masked string) (uint64, error) {
+	numbers := s.sqids.Decode(masked)
 	if len(numbers) != 1 {
 		return 0, errors.New("invalid id")
 	}

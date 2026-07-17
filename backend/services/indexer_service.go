@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 
 const transactionPollInterval = 5 * time.Second
 
-func startTransactionIndexer(db *gorm.DB, crowdFunding *contract.CrowdFunding, client *ethclient.Client) {
+func StartTransactionIndexer(db *gorm.DB, crowdFunding *contract.CrowdFunding, client *ethclient.Client) {
 	go func() {
 		for {
 			if err := pollTransactions(db, crowdFunding, client); err != nil {

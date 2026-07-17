@@ -1,4 +1,4 @@
-package main
+package services
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func newR2Client(ctx context.Context, accountID, accessKeyID, secretAccessKey string) (*s3.Client, error) {
+func NewR2Client(ctx context.Context, accountID, accessKeyID, secretAccessKey string) (*s3.Client, error) {
 	endpoint := fmt.Sprintf("https://%s.r2.cloudflarestorage.com", accountID)
 
 	cfg, err := config.LoadDefaultConfig(ctx,
