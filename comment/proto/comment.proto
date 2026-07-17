@@ -8,6 +8,7 @@ service CommentService {
   rpc PostComment(PostCommentRequest) returns (Comment);
   rpc ListComments(ListCommentsRequest) returns (ListCommentsResponse);
   rpc ReplyToComment(ReplyToCommentRequest) returns (Comment);
+  rpc GetComment(GetCommentRequest) returns (Comment);
 }
 
 message Comment {
@@ -43,4 +44,8 @@ message ReplyToCommentRequest {
   string author_sub = 2;
   string author_name = 3;
   string text = 4;
+}
+
+message GetCommentRequest {
+  string id = 1;
 }

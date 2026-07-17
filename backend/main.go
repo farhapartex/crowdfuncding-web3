@@ -115,6 +115,7 @@ func main() {
 	}
 
 	services.StartTransactionIndexer(gormDB, crowdFunding, client)
+	services.StartDeadlineArchiver(gormDB, crowdFunding)
 
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{

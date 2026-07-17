@@ -20,15 +20,26 @@ function CoverPlaceholder() {
   )
 }
 
+const STATUS_LABELS = {
+  published: 'Published',
+  archived: 'Archived',
+  draft: 'Draft',
+}
+
+const STATUS_STYLES = {
+  published: 'bg-emerald-50 text-emerald-600',
+  archived: 'bg-slate-100 text-slate-600',
+  draft: 'bg-amber-50 text-amber-600',
+}
+
 function StatusPill({ status }) {
-  const isPublished = status === 'published'
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-        isPublished ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+        STATUS_STYLES[status] || STATUS_STYLES.draft
       }`}
     >
-      {isPublished ? 'Published' : 'Draft'}
+      {STATUS_LABELS[status] || 'Draft'}
     </span>
   )
 }
@@ -62,7 +73,10 @@ function CampaignGrid({ campaigns, onSelect, showOwner = true }) {
             {showOwner && <p className="mt-1 text-sm text-slate-500">by Md Nazmul Hasan</p>}
 
             {campaign.amountRaised !== undefined ? (
-              <p className="mt-1 text-sm text-slate-500">{formatEth(campaign.amountRaised)} raised</p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <span className="text-sm text-slate-500">{formatEth(campaign.amountRaised)} raised</span>
+                {campaign.isArchived && <StatusPill status="archived" />}
+              </div>
             ) : (
               <div className="mt-1 flex items-center justify-between gap-2">
                 <span className="text-sm text-slate-500">Goal: {campaign.targetEth} ETH</span>

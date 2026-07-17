@@ -361,6 +361,50 @@ func (x *ReplyToCommentRequest) GetText() string {
 	return ""
 }
 
+type GetCommentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCommentRequest) Reset() {
+	*x = GetCommentRequest{}
+	mi := &file_proto_comment_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCommentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCommentRequest) ProtoMessage() {}
+
+func (x *GetCommentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_comment_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCommentRequest.ProtoReflect.Descriptor instead.
+func (*GetCommentRequest) Descriptor() ([]byte, []int) {
+	return file_proto_comment_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetCommentRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
 var File_proto_comment_proto protoreflect.FileDescriptor
 
 const file_proto_comment_proto_rawDesc = "" +
@@ -400,11 +444,15 @@ const file_proto_comment_proto_rawDesc = "" +
 	"author_sub\x18\x02 \x01(\tR\tauthorSub\x12\x1f\n" +
 	"\vauthor_name\x18\x03 \x01(\tR\n" +
 	"authorName\x12\x12\n" +
-	"\x04text\x18\x04 \x01(\tR\x04text2\xdf\x01\n" +
+	"\x04text\x18\x04 \x01(\tR\x04text\"#\n" +
+	"\x11GetCommentRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id2\x9b\x02\n" +
 	"\x0eCommentService\x12<\n" +
 	"\vPostComment\x12\x1b.comment.PostCommentRequest\x1a\x10.comment.Comment\x12K\n" +
 	"\fListComments\x12\x1c.comment.ListCommentsRequest\x1a\x1d.comment.ListCommentsResponse\x12B\n" +
-	"\x0eReplyToComment\x12\x1e.comment.ReplyToCommentRequest\x1a\x10.comment.CommentB\x17Z\x15comment/gen;commentpbb\x06proto3"
+	"\x0eReplyToComment\x12\x1e.comment.ReplyToCommentRequest\x1a\x10.comment.Comment\x12:\n" +
+	"\n" +
+	"GetComment\x12\x1a.comment.GetCommentRequest\x1a\x10.comment.CommentB\x17Z\x15comment/gen;commentpbb\x06proto3"
 
 var (
 	file_proto_comment_proto_rawDescOnce sync.Once
@@ -418,24 +466,27 @@ func file_proto_comment_proto_rawDescGZIP() []byte {
 	return file_proto_comment_proto_rawDescData
 }
 
-var file_proto_comment_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_proto_comment_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_proto_comment_proto_goTypes = []any{
 	(*Comment)(nil),               // 0: comment.Comment
 	(*PostCommentRequest)(nil),    // 1: comment.PostCommentRequest
 	(*ListCommentsRequest)(nil),   // 2: comment.ListCommentsRequest
 	(*ListCommentsResponse)(nil),  // 3: comment.ListCommentsResponse
 	(*ReplyToCommentRequest)(nil), // 4: comment.ReplyToCommentRequest
+	(*GetCommentRequest)(nil),     // 5: comment.GetCommentRequest
 }
 var file_proto_comment_proto_depIdxs = []int32{
 	0, // 0: comment.ListCommentsResponse.items:type_name -> comment.Comment
 	1, // 1: comment.CommentService.PostComment:input_type -> comment.PostCommentRequest
 	2, // 2: comment.CommentService.ListComments:input_type -> comment.ListCommentsRequest
 	4, // 3: comment.CommentService.ReplyToComment:input_type -> comment.ReplyToCommentRequest
-	0, // 4: comment.CommentService.PostComment:output_type -> comment.Comment
-	3, // 5: comment.CommentService.ListComments:output_type -> comment.ListCommentsResponse
-	0, // 6: comment.CommentService.ReplyToComment:output_type -> comment.Comment
-	4, // [4:7] is the sub-list for method output_type
-	1, // [1:4] is the sub-list for method input_type
+	5, // 4: comment.CommentService.GetComment:input_type -> comment.GetCommentRequest
+	0, // 5: comment.CommentService.PostComment:output_type -> comment.Comment
+	3, // 6: comment.CommentService.ListComments:output_type -> comment.ListCommentsResponse
+	0, // 7: comment.CommentService.ReplyToComment:output_type -> comment.Comment
+	0, // 8: comment.CommentService.GetComment:output_type -> comment.Comment
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -452,7 +503,7 @@ func file_proto_comment_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_comment_proto_rawDesc), len(file_proto_comment_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

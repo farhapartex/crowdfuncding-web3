@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { fetchCampaignComments } from '../lib/api'
 import { formatEthDisplay, formatEth, formatDate } from '../utils/format'
 import { formatCommentTimestamp, groupComments } from '../utils/comments'
+import ArchiveCampaignModal from './ArchiveCampaignModal'
 import Button from './ui/Button'
 import TabButton from './ui/TabButton'
 
@@ -27,16 +28,20 @@ function CampaignPreview({
   onEdit,
   onDelete,
   onWithdraw,
+  onArchive,
   publishLabel = 'Publish',
   isPublishing = false,
   publishError = null,
   withdrawLabel = 'Withdraw Funds',
   isWithdrawing = false,
   withdrawError = null,
+  isArchiving = false,
+  archiveError = null,
 }) {
   const previewCover = campaign.assets?.find((asset) => asset.isCover) || campaign.assets?.[0]
   const isPublished = campaign.status === 'published'
-  const chainDataAvailable = isPublished && campaign.onChainAvailable !== false
+  const isArchived = campaign.status === 'archived'
+  const chainDataAvailable = (isPublished || isArchived) && campaign.onChainAvailable !== false
   const progress = chainDataAvailable ? computeProgressPercent(campaign.amountRaised, campaign.goal) : 0
   const canWithdraw =
     chainDataAvailable &&
@@ -46,6 +51,16 @@ function CampaignPreview({
   const [activeTab, setActiveTab] = useState('story')
   const [comments, setComments] = useState([])
   const [expandedReplies, setExpandedReplies] = useState({})
+  const [showArchiveModal, setShowArchiveModal] = useState(false)
+
+  async function handleConfirmArchive(note) {
+    try {
+      await onArchive(note)
+      setShowArchiveModal(false)
+    } catch {
+      // error is surfaced via archiveError, keep the modal open so the user can retry
+    }
+  }
 
   useEffect(() => {
     if (!campaign.id) return
@@ -86,13 +101,17 @@ function CampaignPreview({
         <div className="flex items-center gap-3">
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium ${
-              isPublished ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+              isArchived
+                ? 'bg-slate-100 text-slate-600'
+                : isPublished
+                  ? 'bg-emerald-50 text-emerald-600'
+                  : 'bg-amber-50 text-amber-600'
             }`}
           >
             <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5">
               <path d="M12 2 2 7v6c0 5 4.5 8 10 9 5.5-1 10-4 10-9V7l-10-5Z" />
             </svg>
-            {isPublished ? 'Published' : 'Draft — not published yet'}
+            {isArchived ? 'Archived' : isPublished ? 'Published' : 'Draft — not published yet'}
           </span>
 
           {onDelete && campaign.status === 'draft' && (
@@ -229,7 +248,7 @@ function CampaignPreview({
                 <p className="text-sm text-slate-500">of {formatEth(campaign.goal)} goal</p>
                 <p className="mt-2 text-xs text-slate-400">Ends {formatDate(campaign.deadline)}</p>
               </>
-            ) : isPublished ? (
+            ) : isPublished || isArchived ? (
               <p className="mt-3 text-sm font-medium text-amber-600">
                 Live blockchain data is temporarily unavailable. Please refresh shortly.
               </p>
@@ -243,7 +262,7 @@ function CampaignPreview({
           </div>
 
           <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
-            {isPublished ? (
+            {isPublished || isArchived ? (
               <>
                 <Link
                   to={`/campaigns/${campaign.id}`}
@@ -271,6 +290,30 @@ function CampaignPreview({
                     </>
                   )
                 )}
+
+                {isArchived ? (
+                  <div className="rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                    <p className="font-medium text-slate-700">
+                      Archived{campaign.archivedAt ? ` on ${new Date(campaign.archivedAt).toLocaleString()}` : ''}
+                    </p>
+                    {campaign.archiveNote && <p className="mt-1">{campaign.archiveNote}</p>}
+                  </div>
+                ) : (
+                  onArchive && (
+                    <>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setShowArchiveModal(true)}
+                        className="justify-center"
+                      >
+                        Archive Campaign
+                      </Button>
+                      {archiveError && !showArchiveModal && (
+                        <p className="text-xs font-medium text-rose-500">{archiveError}</p>
+                      )}
+                    </>
+                  )
+                )}
               </>
             ) : (
               <>
@@ -292,6 +335,15 @@ function CampaignPreview({
           </div>
         </div>
       </div>
+
+      {showArchiveModal && (
+        <ArchiveCampaignModal
+          isArchiving={isArchiving}
+          error={archiveError}
+          onCancel={() => setShowArchiveModal(false)}
+          onConfirm={handleConfirmArchive}
+        />
+      )}
     </div>
   )
 }

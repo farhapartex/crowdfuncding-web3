@@ -34,16 +34,24 @@ type CampaignResponse struct {
 	Country           string `json:"country"`
 	Category          string `json:"category"`
 	CoverURL          string `json:"coverUrl"`
+	IsArchived        bool   `json:"isArchived"`
+	ArchiveNote       string `json:"archiveNote,omitempty"`
 }
 
 func toCampaignResponse(maskedID string, onChainID uint64, campaign contract.Campaign, dbCampaign *models.Campaign, coverURL string) CampaignResponse {
 	description := campaign.Description
 	country := ""
 	category := ""
+	isArchived := false
+	archiveNote := ""
 	if dbCampaign != nil {
 		description = dbCampaign.Description
 		country = dbCampaign.Country
 		category = dbCampaign.Category
+		isArchived = dbCampaign.Status == models.CampaignStatusArchived
+		if dbCampaign.ArchiveNote != nil {
+			archiveNote = *dbCampaign.ArchiveNote
+		}
 	}
 
 	return CampaignResponse{
@@ -60,6 +68,8 @@ func toCampaignResponse(maskedID string, onChainID uint64, campaign contract.Cam
 		Country:           country,
 		Category:          category,
 		CoverURL:          coverURL,
+		IsArchived:        isArchived,
+		ArchiveNote:       archiveNote,
 	}
 }
 
@@ -124,7 +134,10 @@ func (s *PublicCampaignService) GetPublished(maskedID string) (*CampaignResponse
 	if err != nil {
 		return nil, err
 	}
-	if dbCampaign == nil || dbCampaign.Status != models.CampaignStatusPublished || dbCampaign.OnChainCampaignID == nil {
+	isVisible := dbCampaign != nil &&
+		(dbCampaign.Status == models.CampaignStatusPublished || dbCampaign.Status == models.CampaignStatusArchived) &&
+		dbCampaign.OnChainCampaignID != nil
+	if !isVisible {
 		return nil, NewNotFoundError("campaign not found")
 	}
 
@@ -184,6 +197,30 @@ func (s *PublicCampaignService) GetContributors(maskedID string) ([]ContributorD
 	}
 
 	return response, nil
+}
+
+func (s *PublicCampaignService) EnsureCommentable(maskedID string) error {
+	dbID, err := s.idMask.Unmask(maskedID)
+	if err != nil {
+		return NewValidationError("invalid campaign id")
+	}
+
+	campaign, err := models.GetCampaignByID(s.db, dbID)
+	if err != nil {
+		return err
+	}
+	if campaign == nil {
+		return NewNotFoundError("campaign not found")
+	}
+
+	switch campaign.Status {
+	case models.CampaignStatusPublished:
+		return nil
+	case models.CampaignStatusArchived:
+		return NewValidationError("this campaign is archived and no longer accepts comments")
+	default:
+		return NewValidationError("this campaign is not accepting comments")
+	}
 }
 
 func (s *PublicCampaignService) GetCampaignTransactions(maskedID string, offset, limit uint64) (items []models.Transaction, total int64, err error) {

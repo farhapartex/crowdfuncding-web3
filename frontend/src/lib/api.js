@@ -229,6 +229,19 @@ export async function deleteMyCampaign(accessToken, id) {
   }
 }
 
+export async function archiveMyCampaign(accessToken, id, note) {
+  const response = await fetch(`${API_V1_URL}/my-campaigns/${id}/archive`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ note }),
+  })
+  if (!response.ok) {
+    const { error } = await response.json().catch(() => ({}))
+    throw new Error(error || `Failed to archive campaign (status ${response.status})`)
+  }
+  return response.json()
+}
+
 export async function fetchPublicProfile(address) {
   const response = await fetch(`${API_V1_URL}/profiles/${address}`)
   if (!response.ok) {

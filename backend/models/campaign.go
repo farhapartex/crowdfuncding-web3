@@ -12,6 +12,7 @@ import (
 const (
 	CampaignStatusDraft     = "draft"
 	CampaignStatusPublished = "published"
+	CampaignStatusArchived  = "archived"
 )
 
 var CampaignCategories = []string{
@@ -46,6 +47,8 @@ type Campaign struct {
 	WalletAddress     *string    `gorm:"index" json:"walletAddress"`
 	OnChainCampaignID *uint64    `gorm:"uniqueIndex" json:"onChainCampaignId"`
 	PublishedAt       *time.Time `json:"publishedAt"`
+	ArchivedAt        *time.Time `json:"archivedAt"`
+	ArchiveNote       *string    `json:"archiveNote"`
 	CreatedAt         time.Time  `json:"createdAt"`
 	UpdatedAt         time.Time  `json:"updatedAt"`
 }
@@ -99,6 +102,7 @@ func GetCampaignByOnChainID(db *gorm.DB, onChainCampaignID uint64) (*Campaign, e
 var (
 	ErrCampaignNotDraft             = errors.New("campaign is not a draft")
 	ErrOnChainCampaignAlreadyLinked = errors.New("this on-chain campaign is already linked to another draft")
+	ErrCampaignNotPublished         = errors.New("campaign is not published")
 )
 
 func isUniqueViolation(err error) bool {
@@ -128,6 +132,34 @@ func PublishCampaign(db *gorm.DB, id uint64, walletAddress string, onChainCampai
 	return GetCampaignByID(db, id)
 }
 
+func ArchiveCampaign(db *gorm.DB, id uint64, note string) (*Campaign, error) {
+	result := db.Model(&Campaign{}).
+		Where("id = ? AND status = ?", id, CampaignStatusPublished).
+		Updates(map[string]any{
+			"status":       CampaignStatusArchived,
+			"archived_at":  time.Now(),
+			"archive_note": note,
+		})
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil, ErrCampaignNotPublished
+	}
+
+	return GetCampaignByID(db, id)
+}
+
+func ListPublishedCampaignsForArchiveCheck(db *gorm.DB) ([]Campaign, error) {
+	var campaigns []Campaign
+	err := db.Where("status = ? AND on_chain_campaign_id IS NOT NULL", CampaignStatusPublished).Find(&campaigns).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return campaigns, nil
+}
+
 func DeleteCampaign(db *gorm.DB, id uint64, orphanAssetIDs []uint64) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("campaign_id = ?", id).Delete(&CampaignAsset{}).Error; err != nil {
@@ -153,7 +185,7 @@ func DeleteCampaign(db *gorm.DB, id uint64, orphanAssetIDs []uint64) error {
 }
 
 func CountPublishedCampaigns(db *gorm.DB, category string) (int64, error) {
-	query := db.Model(&Campaign{}).Where("status = ?", CampaignStatusPublished)
+	query := db.Model(&Campaign{}).Where("status IN ?", []string{CampaignStatusPublished, CampaignStatusArchived})
 	if category != "" {
 		query = query.Where("category = ?", category)
 	}
@@ -169,7 +201,7 @@ func ListPublishedCampaigns(db *gorm.DB, category string, offset, limit uint64) 
 		return nil, 0, err
 	}
 
-	query := db.Where("status = ?", CampaignStatusPublished)
+	query := db.Where("status IN ?", []string{CampaignStatusPublished, CampaignStatusArchived})
 	if category != "" {
 		query = query.Where("category = ?", category)
 	}

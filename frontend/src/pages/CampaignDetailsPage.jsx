@@ -180,6 +180,7 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
   }
 
   const canContribute = Date.now() / 1000 < Number(campaign.deadline)
+  const canInteract = isAuthenticated && !campaign.isArchived
   const progress = computeProgressPercent(campaign.amountRaised, campaign.goal)
 
   const { rootComments, repliesByParent } = groupComments(comments)
@@ -192,6 +193,13 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
         </Link>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">{campaign.title}</h1>
       </div>
+
+      {campaign.isArchived && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <p className="font-medium text-slate-700">This campaign has been archived.</p>
+          {campaign.archiveNote && <p className="mt-1">{campaign.archiveNote}</p>}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="flex flex-col gap-6 lg:col-span-2">
@@ -251,7 +259,7 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
             <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600">{campaign.description}</p>
           ) : (
             <div className="flex flex-col gap-4">
-              {isAuthenticated && (
+              {canInteract && (
                 <div className="flex items-center justify-end">
                   {!showCommentForm && (
                     <Button variant="secondary" onClick={() => setShowCommentForm(true)}>
@@ -261,7 +269,7 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
                 </div>
               )}
 
-              {isAuthenticated && showCommentForm && (
+              {canInteract && showCommentForm && (
                 <form onSubmit={handlePostComment} className="flex flex-col gap-2">
                   <textarea
                     value={commentText}
@@ -309,7 +317,7 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
                           <span className="text-xs text-slate-400">{formatCommentTimestamp(comment.createdAt)}</span>
                         </div>
                         <p className="text-sm text-slate-600">{comment.text}</p>
-                        {isAuthenticated && (
+                        {canInteract && (
                           <button
                             type="button"
                             onClick={() => toggleReply(comment.id)}
@@ -415,7 +423,7 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
           <p className="text-sm text-slate-500">Ends {formatDate(campaign.deadline)}</p>
 
           <div>
-            {isAuthenticated &&
+            {canInteract &&
               (canContribute ? (
                 account ? (
                   <ContributeForm onContribute={handleContribute} isContributing={isContributing} />

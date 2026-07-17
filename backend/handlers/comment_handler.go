@@ -44,6 +44,11 @@ func registerCommentRoutes(api *gin.RouterGroup, deps *Dependencies) {
 			return
 		}
 
+		if err := deps.PublicCampaignService.EnsureCommentable(c.Param("id")); err != nil {
+			respondError(c, err)
+			return
+		}
+
 		sub := c.GetString("sub")
 		authorName := resolveAuthorName(deps, sub)
 
@@ -62,6 +67,17 @@ func registerCommentRoutes(api *gin.RouterGroup, deps *Dependencies) {
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "text is required"})
+			return
+		}
+
+		parent, err := deps.CommentService.GetComment(c.Request.Context(), c.Param("commentId"))
+		if err != nil {
+			respondError(c, err)
+			return
+		}
+
+		if err := deps.PublicCampaignService.EnsureCommentable(parent.CampaignID); err != nil {
+			respondError(c, err)
 			return
 		}
 

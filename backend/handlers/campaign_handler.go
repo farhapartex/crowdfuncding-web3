@@ -107,4 +107,22 @@ func registerCampaignRoutes(api *gin.RouterGroup, deps *Dependencies) {
 
 		c.JSON(http.StatusOK, result)
 	})
+
+	api.POST("/my-campaigns/:id/archive", auth0Middleware(deps.Auth0Service), func(c *gin.Context) {
+		var req struct {
+			Note string `json:"note" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "a note is required when archiving a campaign"})
+			return
+		}
+
+		result, err := deps.CampaignService.ArchiveCampaign(c.GetString("sub"), c.Param("id"), req.Note)
+		if err != nil {
+			respondError(c, err)
+			return
+		}
+
+		c.JSON(http.StatusOK, result)
+	})
 }

@@ -174,6 +174,8 @@ func (s *CampaignService) GetMyCampaign(sub, maskedID string) (map[string]any, e
 		"walletAddress":     campaign.WalletAddress,
 		"onChainCampaignId": campaign.OnChainCampaignID,
 		"publishedAt":       campaign.PublishedAt,
+		"archivedAt":        campaign.ArchivedAt,
+		"archiveNote":       campaign.ArchiveNote,
 		"createdAt":         campaign.CreatedAt,
 		"assets":            assets,
 	}
@@ -268,5 +270,35 @@ func (s *CampaignService) PublishCampaign(sub, maskedID string, input PublishCam
 		"walletAddress":     updated.WalletAddress,
 		"onChainCampaignId": updated.OnChainCampaignID,
 		"publishedAt":       updated.PublishedAt,
+	}, nil
+}
+
+func (s *CampaignService) ArchiveCampaign(sub, maskedID, note string) (map[string]any, error) {
+	note = strings.TrimSpace(note)
+	if note == "" {
+		return nil, NewValidationError("a note is required when archiving a campaign")
+	}
+
+	campaign, err := s.getOwnedCampaign(sub, maskedID)
+	if err != nil {
+		return nil, err
+	}
+	if campaign.Status != models.CampaignStatusPublished {
+		return nil, NewValidationError("only published campaigns can be archived")
+	}
+
+	updated, err := models.ArchiveCampaign(s.db, campaign.ID, note)
+	if err != nil {
+		if errors.Is(err, models.ErrCampaignNotPublished) {
+			return nil, NewValidationError("only published campaigns can be archived")
+		}
+		return nil, err
+	}
+
+	return map[string]any{
+		"id":          maskedID,
+		"status":      updated.Status,
+		"archivedAt":  updated.ArchivedAt,
+		"archiveNote": updated.ArchiveNote,
 	}, nil
 }

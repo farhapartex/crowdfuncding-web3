@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { fetchMyCampaign, deleteMyCampaign } from '../lib/api'
+import { fetchMyCampaign, deleteMyCampaign, archiveMyCampaign } from '../lib/api'
 import { usePublishCampaign } from '../hooks/usePublishCampaign'
 import { useWithdrawFunds } from '../hooks/useWithdrawFunds'
 import { useAccessToken } from '../hooks/useAccessToken'
@@ -30,6 +30,8 @@ function MyCampaignDetailsPage({ provider, account, onConnectWallet, showToast }
   const [error, setError] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isArchiving, setIsArchiving] = useState(false)
+  const [archiveError, setArchiveError] = useState(null)
   const [activeTab, setActiveTab] = useState('details')
 
   const loadCampaign = useCallback(() => {
@@ -80,6 +82,23 @@ function MyCampaignDetailsPage({ provider, account, onConnectWallet, showToast }
     }
   }
 
+  async function handleArchive(note) {
+    setArchiveError(null)
+    setIsArchiving(true)
+
+    try {
+      const accessToken = await getAccessToken()
+      await archiveMyCampaign(accessToken, id, note)
+      showToast?.('Campaign archived.')
+      await loadCampaign()
+    } catch (err) {
+      setArchiveError(err.message)
+      throw err
+    } finally {
+      setIsArchiving(false)
+    }
+  }
+
   if (error) {
     return <p className="text-sm text-rose-600">{error}</p>
   }
@@ -118,6 +137,9 @@ function MyCampaignDetailsPage({ provider, account, onConnectWallet, showToast }
           withdrawLabel={withdrawLabel}
           isWithdrawing={isWithdrawing}
           withdrawError={withdrawHook.error}
+          onArchive={handleArchive}
+          isArchiving={isArchiving}
+          archiveError={archiveError}
         />
       ) : (
         <div className="mx-auto max-w-5xl">

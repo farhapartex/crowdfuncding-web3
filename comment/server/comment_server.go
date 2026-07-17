@@ -122,3 +122,32 @@ func (s *CommentServer) ReplyToComment(ctx context.Context, req *commentpb.Reply
 		CreatedAt:  comment.CreatedAt.Unix(),
 	}, nil
 }
+
+func (s *CommentServer) GetComment(ctx context.Context, req *commentpb.GetCommentRequest) (*commentpb.Comment, error) {
+	if req.Id == "" {
+		return nil, status.Error(codes.InvalidArgument, "id is required")
+	}
+
+	comment, err := models.GetCommentByID(s.db, req.Id)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to look up comment: %v", err)
+	}
+	if comment == nil {
+		return nil, status.Error(codes.NotFound, "comment not found")
+	}
+
+	parentID := ""
+	if comment.ParentID != nil {
+		parentID = *comment.ParentID
+	}
+
+	return &commentpb.Comment{
+		Id:         comment.ID,
+		CampaignId: comment.CampaignID,
+		AuthorSub:  comment.AuthorSub,
+		AuthorName: comment.AuthorName,
+		Text:       comment.Text,
+		ParentId:   parentID,
+		CreatedAt:  comment.CreatedAt.Unix(),
+	}, nil
+}
