@@ -94,7 +94,7 @@ function ProfilePage({ account, onConnectWallet }) {
           </div>
         </>
       ) : (
-        <UserTransactionsTab />
+        <UserTransactionsTab address={account} />
       )}
     </div>
   )

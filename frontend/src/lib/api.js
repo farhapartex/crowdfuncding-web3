@@ -30,6 +30,22 @@ export async function fetchContributors(campaignId) {
   return response.json()
 }
 
+export async function fetchCampaignTransactions(campaignId, { offset = 0, limit = 20 } = {}) {
+  const response = await fetch(`${API_V1_URL}/campaigns/${campaignId}/transactions?offset=${offset}&limit=${limit}`)
+  if (!response.ok) {
+    throw new Error(`Failed to load transactions (status ${response.status})`)
+  }
+  return response.json()
+}
+
+export async function fetchWalletTransactions(address, { offset = 0, limit = 20 } = {}) {
+  const response = await fetch(`${API_V1_URL}/wallets/${address}/transactions?offset=${offset}&limit=${limit}`)
+  if (!response.ok) {
+    throw new Error(`Failed to load transactions (status ${response.status})`)
+  }
+  return response.json()
+}
+
 export async function fetchSignInMessage(address) {
   const response = await fetch(`${API_V1_URL}/auth/nonce?address=${address}`)
   if (!response.ok) {

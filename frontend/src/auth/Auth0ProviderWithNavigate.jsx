@@ -22,6 +22,7 @@ function Auth0ProviderWithNavigate({ children }) {
         scope: 'openid profile email offline_access',
       }}
       useRefreshTokens
+      useRefreshTokensFallback
       cacheLocation="localstorage"
       onRedirectCallback={onRedirectCallback}
     >

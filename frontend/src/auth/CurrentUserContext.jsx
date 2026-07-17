@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { useAuth0 } from '@auth0/auth0-react'
 import { fetchAuth0Me, syncAuth0User } from '../lib/api'
+import { useAccessToken } from '../hooks/useAccessToken'
 
 const CurrentUserContext = createContext({
   currentUser: null,
@@ -19,7 +20,8 @@ async function loadCurrentUser(accessToken) {
 }
 
 export function CurrentUserProvider({ children }) {
-  const { isAuthenticated, getAccessTokenSilently } = useAuth0()
+  const { isAuthenticated } = useAuth0()
+  const getAccessToken = useAccessToken()
   const [currentUser, setCurrentUser] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -33,7 +35,7 @@ export function CurrentUserProvider({ children }) {
     setIsLoading(true)
     setError(null)
     try {
-      const accessToken = await getAccessTokenSilently()
+      const accessToken = await getAccessToken()
       const me = await loadCurrentUser(accessToken)
       setCurrentUser(me)
     } catch (err) {
@@ -41,7 +43,7 @@ export function CurrentUserProvider({ children }) {
     } finally {
       setIsLoading(false)
     }
-  }, [isAuthenticated, getAccessTokenSilently])
+  }, [isAuthenticated, getAccessToken])
 
   useEffect(() => {
     refresh()

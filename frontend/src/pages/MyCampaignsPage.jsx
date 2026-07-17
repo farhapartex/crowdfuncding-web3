@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth0 } from '@auth0/auth0-react'
 import { fetchMyCampaigns } from '../lib/api'
+import { useAccessToken } from '../hooks/useAccessToken'
 import CampaignGrid from '../components/CampaignGrid'
 import Pagination from '../components/Pagination'
 import Button from '../components/ui/Button'
@@ -10,7 +10,7 @@ const PAGE_SIZE = 9
 
 function MyCampaignsPage() {
   const navigate = useNavigate()
-  const { getAccessTokenSilently } = useAuth0()
+  const getAccessToken = useAccessToken()
   const [campaigns, setCampaigns] = useState([])
   const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
@@ -25,7 +25,7 @@ function MyCampaignsPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const accessToken = await getAccessTokenSilently()
+      const accessToken = await getAccessToken()
       const { items, total: totalCount } = await fetchMyCampaigns(accessToken, {
         offset: targetOffset,
         limit: PAGE_SIZE,

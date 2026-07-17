@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatEthDisplay } from '../utils/format'
+import { formatEthDisplay, formatEth, formatDate } from '../utils/format'
 import Button from './ui/Button'
 import TabButton from './ui/TabButton'
 
@@ -8,6 +8,12 @@ const SEED_COMMENTS = [
   { id: 1, author: 'Alex Morgan', text: 'This is such a great initiative, happy to support!', postedAt: '2 days ago' },
   { id: 2, author: 'Priya Singh', text: 'Following this closely, good luck reaching the goal.', postedAt: '5 hours ago' },
 ]
+
+function computeProgressPercent(amountRaised, goal) {
+  if (!goal || goal === '0') return 0
+  const percent = (BigInt(amountRaised) * 10000n) / BigInt(goal)
+  return Math.min(100, Number(percent) / 100)
+}
 
 function TrashIcon() {
   return (
@@ -23,12 +29,23 @@ function CampaignPreview({
   onPublish,
   onEdit,
   onDelete,
+  onWithdraw,
   publishLabel = 'Publish',
   isPublishing = false,
   publishError = null,
+  withdrawLabel = 'Withdraw Funds',
+  isWithdrawing = false,
+  withdrawError = null,
 }) {
   const previewCover = campaign.assets?.find((asset) => asset.isCover) || campaign.assets?.[0]
   const isPublished = campaign.status === 'published'
+  const chainDataAvailable = isPublished && campaign.onChainAvailable !== false
+  const progress = chainDataAvailable ? computeProgressPercent(campaign.amountRaised, campaign.goal) : 0
+  const canWithdraw =
+    chainDataAvailable &&
+    !campaign.withdrawn &&
+    onWithdraw &&
+    BigInt(campaign.amountRaised || '0') >= BigInt(campaign.goal || '0')
   const [activeTab, setActiveTab] = useState('story')
   const [comments, setComments] = useState(SEED_COMMENTS)
   const [commentText, setCommentText] = useState('')
@@ -190,21 +207,57 @@ function CampaignPreview({
         <div className="flex flex-col gap-4 self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:sticky lg:top-24">
           <div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full w-0 rounded-full bg-indigo-600" />
+              <div className="h-full rounded-full bg-indigo-600" style={{ width: `${progress}%` }} />
             </div>
-            <p className="mt-3 text-lg font-semibold text-slate-900">0 ETH raised</p>
-            <p className="text-sm text-slate-500">of {formatEthDisplay(campaign.targetEth)} ETH goal</p>
-            <p className="mt-2 text-xs text-slate-400">Runs for {campaign.durationDays} days once published</p>
+            {chainDataAvailable ? (
+              <>
+                <p className="mt-3 text-lg font-semibold text-slate-900">{formatEth(campaign.amountRaised)} raised</p>
+                <p className="text-sm text-slate-500">of {formatEth(campaign.goal)} goal</p>
+                <p className="mt-2 text-xs text-slate-400">Ends {formatDate(campaign.deadline)}</p>
+              </>
+            ) : isPublished ? (
+              <p className="mt-3 text-sm font-medium text-amber-600">
+                Live blockchain data is temporarily unavailable. Please refresh shortly.
+              </p>
+            ) : (
+              <>
+                <p className="mt-3 text-lg font-semibold text-slate-900">0 ETH raised</p>
+                <p className="text-sm text-slate-500">of {formatEthDisplay(campaign.targetEth)} ETH goal</p>
+                <p className="mt-2 text-xs text-slate-400">Runs for {campaign.durationDays} days once published</p>
+              </>
+            )}
           </div>
 
           <div className="flex flex-col gap-2 border-t border-slate-100 pt-4">
             {isPublished ? (
-              <Link
-                to={`/campaigns/${campaign.onChainCampaignId}`}
-                className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-indigo-600 px-4 py-3 text-base font-medium text-white shadow-sm transition-colors hover:bg-indigo-500"
-              >
-                View Live Campaign
-              </Link>
+              <>
+                <Link
+                  to={`/campaigns/${campaign.id}`}
+                  className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-indigo-600 px-4 py-3 text-base font-medium text-white shadow-sm transition-colors hover:bg-indigo-500"
+                >
+                  View Live Campaign
+                </Link>
+
+                {campaign.withdrawn ? (
+                  <span className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-600">
+                    Funds withdrawn
+                  </span>
+                ) : (
+                  canWithdraw && (
+                    <>
+                      <Button
+                        variant="secondary"
+                        onClick={onWithdraw}
+                        disabled={isWithdrawing}
+                        className="justify-center py-3 text-base"
+                      >
+                        {withdrawLabel}
+                      </Button>
+                      {withdrawError && <p className="text-xs font-medium text-rose-500">{withdrawError}</p>}
+                    </>
+                  )
+                )}
+              </>
             ) : (
               <>
                 <Button

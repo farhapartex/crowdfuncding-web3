@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth0 } from '@auth0/auth0-react'
 import { uploadAsset, createMyCampaign, fetchMyCampaign } from '../lib/api'
 import { formatEthDisplay } from '../utils/format'
 import { usePublishCampaign } from '../hooks/usePublishCampaign'
+import { useAccessToken } from '../hooks/useAccessToken'
 import Button from '../components/ui/Button'
 import CampaignPreview from '../components/CampaignPreview'
 
@@ -165,7 +165,7 @@ function LivePreviewCard({ title, description, target, country, category, durati
 }
 
 function CreateCampaignPreviewStep({ campaign, provider, account, onConnectWallet, showToast, onBack, onEdit, onRefresh }) {
-  const { getAccessTokenSilently } = useAuth0()
+  const getAccessToken = useAccessToken()
 
   const publishHook = usePublishCampaign({
     campaign,
@@ -174,7 +174,7 @@ function CreateCampaignPreviewStep({ campaign, provider, account, onConnectWalle
     onConnectWallet,
     onPublished: async () => {
       showToast?.('Your campaign is live!')
-      const accessToken = await getAccessTokenSilently()
+      const accessToken = await getAccessToken()
       const updated = await fetchMyCampaign(accessToken, campaign.id)
       onRefresh(updated)
     },
@@ -198,7 +198,7 @@ function CreateCampaignPreviewStep({ campaign, provider, account, onConnectWalle
 
 function CreateCampaignPage({ provider, account, onConnectWallet, showToast }) {
   const navigate = useNavigate()
-  const { getAccessTokenSilently } = useAuth0()
+  const getAccessToken = useAccessToken()
   const [step, setStep] = useState('form')
   const [country, setCountry] = useState(COUNTRIES[0])
   const [category, setCategory] = useState(CATEGORIES[0])
@@ -230,7 +230,7 @@ function CreateCampaignPage({ provider, account, onConnectWallet, showToast }) {
     setIsUploadingImage(true)
 
     try {
-      const accessToken = await getAccessTokenSilently()
+      const accessToken = await getAccessToken()
       const asset = await uploadAsset(accessToken, file)
       setCoverAsset(asset)
     } catch (err) {
@@ -268,7 +268,7 @@ function CreateCampaignPage({ provider, account, onConnectWallet, showToast }) {
     setIsSubmitting(true)
 
     try {
-      const accessToken = await getAccessTokenSilently()
+      const accessToken = await getAccessToken()
       const created = await createMyCampaign(accessToken, {
         country,
         category,

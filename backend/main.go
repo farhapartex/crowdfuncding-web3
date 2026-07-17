@@ -150,7 +150,7 @@ func main() {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
-	startContributionIndexer(gormDB, crowdFunding, client)
+	startTransactionIndexer(gormDB, crowdFunding, client)
 
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{
@@ -497,7 +497,7 @@ func main() {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
+		response := gin.H{
 			"id":                maskedID,
 			"ownerSub":          campaign.OwnerSub,
 			"country":           campaign.Country,
@@ -513,7 +513,24 @@ func main() {
 			"publishedAt":       campaign.PublishedAt,
 			"createdAt":         campaign.CreatedAt,
 			"assets":            assets,
-		})
+		}
+
+		if campaign.OnChainCampaignID != nil {
+			chainCampaign, err := crowdFunding.GetCampaign(nil, new(big.Int).SetUint64(*campaign.OnChainCampaignID))
+			if err != nil {
+				log.Printf("my-campaigns/%s: failed to read on-chain campaign %d: %v", c.Param("id"), *campaign.OnChainCampaignID, err)
+				response["onChainAvailable"] = false
+			} else {
+				response["onChainAvailable"] = true
+				response["goal"] = chainCampaign.Goal.String()
+				response["amountRaised"] = chainCampaign.AmountRaised.String()
+				response["deadline"] = chainCampaign.Deadline.String()
+				response["withdrawn"] = chainCampaign.Withdrawn
+				response["onChainStatus"] = campaignStatus(chainCampaign)
+			}
+		}
+
+		c.JSON(http.StatusOK, response)
 	})
 
 	api.DELETE("/my-campaigns/:id", auth0Middleware(auth0KeyFunc, auth0Domain, auth0Audience), func(c *gin.Context) {
@@ -750,7 +767,8 @@ func main() {
 		onChainID := *dbCampaign.OnChainCampaignID
 		chainCampaign, err := crowdFunding.GetCampaign(nil, new(big.Int).SetUint64(onChainID))
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			log.Printf("campaigns/%s: failed to read on-chain campaign %d: %v", c.Param("id"), onChainID, err)
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "campaign data is temporarily unavailable, please try again shortly"})
 			return
 		}
 
@@ -802,6 +820,64 @@ func main() {
 		}
 
 		c.JSON(http.StatusOK, response)
+	})
+
+	api.GET("/campaigns/:id/transactions", func(c *gin.Context) {
+		dbID, err := unmaskID(idMasker, c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid campaign id"})
+			return
+		}
+
+		dbCampaign, err := models.GetCampaignByID(gormDB, dbID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if dbCampaign == nil || dbCampaign.OnChainCampaignID == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "campaign not found"})
+			return
+		}
+
+		pagination, err := parsePagination(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		transactions, total, err := models.GetTransactionsForCampaign(gormDB, *dbCampaign.OnChainCampaignID, pagination.Offset, pagination.Limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, PaginatedResponse{
+			Items:  transactions,
+			Total:  total,
+			Offset: pagination.Offset,
+			Limit:  pagination.Limit,
+		})
+	})
+
+	api.GET("/wallets/:address/transactions", func(c *gin.Context) {
+		pagination, err := parsePagination(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		transactions, total, err := models.GetTransactionsForWallet(gormDB, c.Param("address"), pagination.Offset, pagination.Limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, PaginatedResponse{
+			Items:  transactions,
+			Total:  total,
+			Offset: pagination.Offset,
+			Limit:  pagination.Limit,
+		})
 	})
 
 	port := os.Getenv("PORT")

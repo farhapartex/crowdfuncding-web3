@@ -1,13 +1,13 @@
 import { useCallback, useState } from 'react'
-import { useAuth0 } from '@auth0/auth0-react'
 import { parseEther } from 'ethers'
 import { getCrowdFundingContract } from '../lib/crowdFundingContract'
 import { publishMyCampaign } from '../lib/api'
+import { useAccessToken } from './useAccessToken'
 
 const SECONDS_PER_DAY = 24 * 60 * 60
 
 export function usePublishCampaign({ campaign, provider, account, onConnectWallet, onPublished }) {
-  const { getAccessTokenSilently } = useAuth0()
+  const getAccessToken = useAccessToken()
   const [phase, setPhase] = useState('idle')
   const [error, setError] = useState(null)
   const [pendingLink, setPendingLink] = useState(null)
@@ -18,7 +18,7 @@ export function usePublishCampaign({ campaign, provider, account, onConnectWalle
       setError(null)
 
       try {
-        const accessToken = await getAccessTokenSilently()
+        const accessToken = await getAccessToken()
         await publishMyCampaign(accessToken, campaign.id, linkData)
         setPendingLink(null)
         setPhase('idle')
@@ -29,7 +29,7 @@ export function usePublishCampaign({ campaign, provider, account, onConnectWalle
         setPhase('error')
       }
     },
-    [campaign, getAccessTokenSilently, onPublished],
+    [campaign, getAccessToken, onPublished],
   )
 
   const publish = useCallback(async () => {

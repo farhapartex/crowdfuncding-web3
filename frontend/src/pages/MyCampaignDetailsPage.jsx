@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useAuth0 } from '@auth0/auth0-react'
 import { fetchMyCampaign, deleteMyCampaign } from '../lib/api'
 import { usePublishCampaign } from '../hooks/usePublishCampaign'
+import { useWithdrawFunds } from '../hooks/useWithdrawFunds'
+import { useAccessToken } from '../hooks/useAccessToken'
 import CampaignPreview from '../components/CampaignPreview'
 import CampaignTransactionsTab from '../components/CampaignTransactionsTab'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -15,10 +16,16 @@ const PUBLISH_LABELS = {
   linking: 'Finalizing...',
 }
 
+const WITHDRAW_LABELS = {
+  connecting: 'Connecting wallet...',
+  signing: 'Confirm in wallet...',
+  confirming: 'Waiting for confirmation...',
+}
+
 function MyCampaignDetailsPage({ provider, account, onConnectWallet, showToast }) {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { getAccessTokenSilently } = useAuth0()
+  const getAccessToken = useAccessToken()
   const [campaign, setCampaign] = useState(null)
   const [error, setError] = useState(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -26,11 +33,11 @@ function MyCampaignDetailsPage({ provider, account, onConnectWallet, showToast }
   const [activeTab, setActiveTab] = useState('details')
 
   const loadCampaign = useCallback(() => {
-    return getAccessTokenSilently()
+    return getAccessToken()
       .then((accessToken) => fetchMyCampaign(accessToken, id))
       .then(setCampaign)
       .catch((err) => setError(err.message))
-  }, [id, getAccessTokenSilently])
+  }, [id, getAccessToken])
 
   useEffect(() => {
     loadCampaign()
@@ -47,12 +54,23 @@ function MyCampaignDetailsPage({ provider, account, onConnectWallet, showToast }
     },
   })
 
+  const withdrawHook = useWithdrawFunds({
+    campaign,
+    provider,
+    account,
+    onConnectWallet,
+    onWithdrawn: () => {
+      showToast?.('Funds withdrawn to your wallet!')
+      loadCampaign()
+    },
+  })
+
   async function handleConfirmDelete() {
     setError(null)
     setIsDeleting(true)
 
     try {
-      const accessToken = await getAccessTokenSilently()
+      const accessToken = await getAccessToken()
       await deleteMyCampaign(accessToken, id)
       navigate('/my-campaigns')
     } catch (err) {
@@ -72,6 +90,9 @@ function MyCampaignDetailsPage({ provider, account, onConnectWallet, showToast }
 
   const isPublishing = ['connecting', 'signing', 'confirming', 'linking'].includes(publishHook.phase)
   const publishLabel = PUBLISH_LABELS[publishHook.phase] || (publishHook.pendingLink ? 'Finish Publishing' : 'Publish')
+
+  const isWithdrawing = ['connecting', 'signing', 'confirming'].includes(withdrawHook.phase)
+  const withdrawLabel = WITHDRAW_LABELS[withdrawHook.phase] || 'Withdraw Funds'
 
   return (
     <>
@@ -93,10 +114,14 @@ function MyCampaignDetailsPage({ provider, account, onConnectWallet, showToast }
           isPublishing={isPublishing}
           publishError={publishHook.error}
           onDelete={() => setShowDeleteConfirm(true)}
+          onWithdraw={withdrawHook.withdraw}
+          withdrawLabel={withdrawLabel}
+          isWithdrawing={isWithdrawing}
+          withdrawError={withdrawHook.error}
         />
       ) : (
         <div className="mx-auto max-w-5xl">
-          <CampaignTransactionsTab campaign={campaign} />
+          <CampaignTransactionsTab campaignId={id} />
         </div>
       )}
 

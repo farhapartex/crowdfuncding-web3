@@ -18,7 +18,7 @@ func Migrate(db *gorm.DB) error {
 		&models.Campaign{},
 		&models.Asset{},
 		&models.CampaignAsset{},
-		&models.Contribution{},
+		&models.Transaction{},
 		&models.IndexerState{},
 	)
 }

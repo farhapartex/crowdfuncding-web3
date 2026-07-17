@@ -1,34 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatEther } from 'ethers'
-import { shortenAddress, formatEth, formatDate } from '../utils/format'
+import { fetchCampaignTransactions } from '../lib/api'
+import { shortenAddress, formatEth } from '../utils/format'
 import Button from './ui/Button'
+import Pagination from './Pagination'
 
-const MOCK_TRANSACTIONS = [
-  {
-    id: 1,
-    type: 'contribution',
-    address: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
-    amount: '1500000000000000000',
-    txHash: '0xa1b2c3d4e5f60718293a4b5c6d7e8f9012345678901234567890abcdef12345',
-    timestamp: Math.floor(Date.now() / 1000) - 2 * 24 * 60 * 60,
-  },
-  {
-    id: 2,
-    type: 'contribution',
-    address: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4',
-    amount: '500000000000000000',
-    txHash: '0xb2c3d4e5f60718293a4b5c6d7e8f9012345678901234567890abcdef123456a',
-    timestamp: Math.floor(Date.now() / 1000) - 1 * 24 * 60 * 60,
-  },
-  {
-    id: 3,
-    type: 'withdraw',
-    address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
-    amount: '2000000000000000000',
-    txHash: '0xc3d4e5f60718293a4b5c6d7e8f9012345678901234567890abcdef123456ab',
-    timestamp: Math.floor(Date.now() / 1000) - 3 * 60 * 60,
-  },
-]
+const PAGE_SIZE = 10
 
 function TransactionTypeBadge({ type }) {
   const isWithdraw = type === 'withdraw'
@@ -67,7 +44,11 @@ function CheckIcon() {
 function DownloadIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-4 w-4">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
+      />
     </svg>
   )
 }
@@ -78,7 +59,7 @@ function downloadTransactionsCSV(transactions) {
     tx.type,
     tx.address,
     formatEther(tx.amount),
-    new Date(tx.timestamp * 1000).toISOString(),
+    new Date(tx.blockTimestamp).toISOString(),
     tx.txHash,
   ])
 
@@ -94,9 +75,35 @@ function downloadTransactionsCSV(transactions) {
   URL.revokeObjectURL(url)
 }
 
-function CampaignTransactionsTab() {
-  const transactions = MOCK_TRANSACTIONS
+function CampaignTransactionsTab({ campaignId }) {
+  const [transactions, setTransactions] = useState([])
+  const [total, setTotal] = useState(0)
+  const [offset, setOffset] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [copiedTxId, setCopiedTxId] = useState(null)
+
+  useEffect(() => {
+    refresh(0)
+  }, [campaignId])
+
+  async function refresh(targetOffset) {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const { items, total: totalCount } = await fetchCampaignTransactions(campaignId, {
+        offset: targetOffset,
+        limit: PAGE_SIZE,
+      })
+      setTransactions(items)
+      setTotal(totalCount)
+      setOffset(targetOffset)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   function handleCopy(tx) {
     navigator.clipboard.writeText(tx.txHash)
@@ -119,61 +126,75 @@ function CampaignTransactionsTab() {
         </Button>
       </div>
 
-      {transactions.length === 0 ? (
+      {error && <p className="text-sm text-rose-600">{error}</p>}
+
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Loading transactions...</p>
+      ) : transactions.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
           <p className="text-sm text-slate-500">No transactions yet.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Type
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Address
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Amount
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Date
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Transaction
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {transactions.map((tx) => (
-                  <tr key={tx.id}>
-                    <td className="px-4 py-3">
-                      <TransactionTypeBadge type={tx.type} />
-                    </td>
-                    <td className="px-4 py-3 font-mono text-slate-900">{shortenAddress(tx.address)}</td>
-                    <td className="px-4 py-3 text-slate-600">{formatEth(tx.amount)}</td>
-                    <td className="px-4 py-3 text-slate-500">{formatDate(tx.timestamp)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-indigo-600">{shortenAddress(tx.txHash)}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(tx)}
-                          aria-label="Copy transaction hash"
-                          className="cursor-pointer text-slate-400 hover:text-slate-600"
-                        >
-                          {copiedTxId === tx.id ? <CheckIcon /> : <CopyIcon />}
-                        </button>
-                      </div>
-                    </td>
+        <>
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Type
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Address
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Amount
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Date
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Transaction
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {transactions.map((tx) => (
+                    <tr key={tx.id}>
+                      <td className="px-4 py-3">
+                        <TransactionTypeBadge type={tx.type} />
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-900">{shortenAddress(tx.address)}</td>
+                      <td className="px-4 py-3 text-slate-600">{formatEth(tx.amount)}</td>
+                      <td className="px-4 py-3 text-slate-500">{new Date(tx.blockTimestamp).toLocaleString()}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-indigo-600">{shortenAddress(tx.txHash)}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(tx)}
+                            aria-label="Copy transaction hash"
+                            className="cursor-pointer text-slate-400 hover:text-slate-600"
+                          >
+                            {copiedTxId === tx.id ? <CheckIcon /> : <CopyIcon />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          <Pagination
+            offset={offset}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPrevious={() => refresh(Math.max(0, offset - PAGE_SIZE))}
+            onNext={() => refresh(offset + PAGE_SIZE)}
+          />
+        </>
       )}
     </div>
   )
