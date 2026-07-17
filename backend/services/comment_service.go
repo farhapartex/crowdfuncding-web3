@@ -104,3 +104,34 @@ func (s *CommentService) PostComment(ctx context.Context, campaignID, authorSub,
 		CreatedAt:  resp.CreatedAt,
 	}, nil
 }
+
+func (s *CommentService) ReplyToComment(ctx context.Context, parentID, authorSub, authorName, text string) (*CampaignComment, error) {
+	resp, err := s.client.ReplyToComment(s.authContext(ctx), &commentpb.ReplyToCommentRequest{
+		ParentId:   parentID,
+		AuthorSub:  authorSub,
+		AuthorName: authorName,
+		Text:       text,
+	})
+	if err != nil {
+		if status.Code(err) == codes.Unavailable {
+			return nil, NewUnavailableError("comment service is temporarily unavailable, please try again shortly")
+		}
+		if status.Code(err) == codes.InvalidArgument {
+			return nil, NewValidationError(status.Convert(err).Message())
+		}
+		if status.Code(err) == codes.NotFound {
+			return nil, NewNotFoundError(status.Convert(err).Message())
+		}
+		return nil, err
+	}
+
+	return &CampaignComment{
+		ID:         resp.Id,
+		CampaignID: resp.CampaignId,
+		AuthorSub:  resp.AuthorSub,
+		AuthorName: resp.AuthorName,
+		Text:       resp.Text,
+		ParentID:   resp.ParentId,
+		CreatedAt:  resp.CreatedAt,
+	}, nil
+}

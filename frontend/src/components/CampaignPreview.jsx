@@ -1,13 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { fetchCampaignComments } from '../lib/api'
 import { formatEthDisplay, formatEth, formatDate } from '../utils/format'
+import { formatCommentTimestamp, groupComments } from '../utils/comments'
 import Button from './ui/Button'
 import TabButton from './ui/TabButton'
-
-const SEED_COMMENTS = [
-  { id: 1, author: 'Alex Morgan', text: 'This is such a great initiative, happy to support!', postedAt: '2 days ago' },
-  { id: 2, author: 'Priya Singh', text: 'Following this closely, good luck reaching the goal.', postedAt: '5 hours ago' },
-]
 
 function computeProgressPercent(amountRaised, goal) {
   if (!goal || goal === '0') return 0
@@ -47,18 +44,22 @@ function CampaignPreview({
     onWithdraw &&
     BigInt(campaign.amountRaised || '0') >= BigInt(campaign.goal || '0')
   const [activeTab, setActiveTab] = useState('story')
-  const [comments, setComments] = useState(SEED_COMMENTS)
-  const [commentText, setCommentText] = useState('')
-  const [showCommentForm, setShowCommentForm] = useState(false)
+  const [comments, setComments] = useState([])
+  const [expandedReplies, setExpandedReplies] = useState({})
 
-  function handlePostComment(e) {
-    e.preventDefault()
-    if (!commentText.trim()) return
+  useEffect(() => {
+    if (!campaign.id) return
 
-    setComments((prev) => [{ id: Date.now(), author: 'You', text: commentText.trim(), postedAt: 'Just now' }, ...prev])
-    setCommentText('')
-    setShowCommentForm(false)
+    fetchCampaignComments(campaign.id)
+      .then(({ items }) => setComments(items))
+      .catch(() => {})
+  }, [campaign.id])
+
+  function toggleReplies(commentId) {
+    setExpandedReplies((prev) => ({ ...prev, [commentId]: !prev[commentId] }))
   }
+
+  const { rootComments, repliesByParent } = groupComments(comments)
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -151,55 +152,68 @@ function CampaignPreview({
             <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600">{campaign.description}</p>
           ) : (
             <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-end">
-                {!showCommentForm && (
-                  <Button variant="secondary" onClick={() => setShowCommentForm(true)}>
-                    Add Comment
-                  </Button>
-                )}
-              </div>
-
-              {showCommentForm && (
-                <form onSubmit={handlePostComment} className="flex flex-col gap-2">
-                  <textarea
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Leave a comment of support..."
-                    rows={3}
-                    autoFocus
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="secondary" onClick={() => setShowCommentForm(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">Post Comment</Button>
-                  </div>
-                </form>
+              {rootComments.length === 0 && (
+                <p className="text-sm text-slate-500">No comments yet.</p>
               )}
+              {rootComments.map((comment) => {
+                const replies = repliesByParent[comment.id] || []
+                const isExpanded = Boolean(expandedReplies[comment.id])
 
-              <div className="flex flex-col gap-4">
-                {comments.map((comment) => (
-                  <div key={comment.id} className="flex gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-600">
-                      {comment.author.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-900">{comment.author}</span>
-                        <span className="text-xs text-slate-400">{comment.postedAt}</span>
+                return (
+                  <div key={comment.id} className="flex flex-col gap-3">
+                    <div className="flex gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-600">
+                        {comment.authorName.charAt(0).toUpperCase()}
                       </div>
-                      <p className="text-sm text-slate-600">{comment.text}</p>
-                      <button
-                        type="button"
-                        className="mt-1 self-start cursor-pointer text-xs font-medium text-slate-500 hover:text-indigo-600"
-                      >
-                        Reply
-                      </button>
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-900">{comment.authorName}</span>
+                          <span className="text-xs text-slate-400">{formatCommentTimestamp(comment.createdAt)}</span>
+                        </div>
+                        <p className="text-sm text-slate-600">{comment.text}</p>
+                      </div>
                     </div>
+
+                    {replies.length > 0 && (
+                      <div className="ml-11 flex flex-col gap-3">
+                        {!isExpanded ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleReplies(comment.id)}
+                            className="self-start cursor-pointer text-xs font-medium text-slate-500 hover:text-indigo-600"
+                          >
+                            {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+                          </button>
+                        ) : (
+                          <>
+                            {replies.map((reply) => (
+                              <div key={reply.id} className="flex gap-2.5">
+                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-600">
+                                  {reply.authorName.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-slate-900">{reply.authorName}</span>
+                                    <span className="text-xs text-slate-400">{formatCommentTimestamp(reply.createdAt)}</span>
+                                  </div>
+                                  <p className="text-sm text-slate-600">{reply.text}</p>
+                                </div>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => toggleReplies(comment.id)}
+                              className="self-start cursor-pointer text-xs font-medium text-slate-500 hover:text-indigo-600"
+                            >
+                              Hide replies
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
+                )
+              })}
             </div>
           )}
         </div>

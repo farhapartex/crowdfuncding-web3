@@ -2,19 +2,23 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
 import { parseEther } from 'ethers'
-import { fetchCampaign, fetchContributors, fetchPublicProfile, fetchCampaignComments, postCampaignComment } from '../lib/api'
+import {
+  fetchCampaign,
+  fetchContributors,
+  fetchPublicProfile,
+  fetchCampaignComments,
+  postCampaignComment,
+  postCommentReply,
+} from '../lib/api'
 import { getCrowdFundingContract } from '../lib/crowdFundingContract'
 import { useAccessToken } from '../hooks/useAccessToken'
 import { shortenAddress, formatEth, formatDate } from '../utils/format'
+import { formatCommentTimestamp, groupComments } from '../utils/comments'
 import StatusBadge from '../components/ui/StatusBadge'
 import ContributeForm from '../components/ContributeForm'
 import ShareModal from '../components/ShareModal'
 import Button from '../components/ui/Button'
 import TabButton from '../components/ui/TabButton'
-
-function formatCommentTimestamp(unixSeconds) {
-  return new Date(unixSeconds * 1000).toLocaleString()
-}
 
 function MessageIcon() {
   return (
@@ -24,6 +28,14 @@ function MessageIcon() {
         strokeLinejoin="round"
         d="M21 12c0 4.142-4.03 7.5-9 7.5a9.7 9.7 0 0 1-2.9-.44L3 20l1.2-3.6A7.2 7.2 0 0 1 3 12c0-4.142 4.03-7.5 9-7.5s9 3.358 9 7.5Z"
       />
+    </svg>
+  )
+}
+
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+      <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z" />
     </svg>
   )
 }
@@ -59,6 +71,11 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
   const [showCommentForm, setShowCommentForm] = useState(false)
   const [isPostingComment, setIsPostingComment] = useState(false)
   const [commentError, setCommentError] = useState(null)
+  const [replyingToId, setReplyingToId] = useState(null)
+  const [replyText, setReplyText] = useState('')
+  const [isPostingReply, setIsPostingReply] = useState(false)
+  const [replyError, setReplyError] = useState(null)
+  const [expandedReplies, setExpandedReplies] = useState({})
   const [activeTab, setActiveTab] = useState('story')
   const [showShareModal, setShowShareModal] = useState(false)
 
@@ -127,12 +144,45 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
     }
   }
 
+  function toggleReply(commentId) {
+    setReplyError(null)
+    setReplyText('')
+    setReplyingToId((current) => (current === commentId ? null : commentId))
+  }
+
+  async function handleSubmitReply(e, parentId) {
+    e.preventDefault()
+    if (!replyText.trim() || isPostingReply) return
+
+    setReplyError(null)
+    setIsPostingReply(true)
+
+    try {
+      const accessToken = await getAccessToken()
+      const reply = await postCommentReply(accessToken, parentId, replyText.trim())
+      setComments((prev) => [reply, ...prev])
+      setReplyText('')
+      setReplyingToId(null)
+      setExpandedReplies((prev) => ({ ...prev, [parentId]: true }))
+    } catch (err) {
+      setReplyError(err.message)
+    } finally {
+      setIsPostingReply(false)
+    }
+  }
+
+  function toggleReplies(commentId) {
+    setExpandedReplies((prev) => ({ ...prev, [commentId]: !prev[commentId] }))
+  }
+
   if (!campaign) {
     return <p className="text-sm text-slate-500">Loading campaign...</p>
   }
 
   const canContribute = Date.now() / 1000 < Number(campaign.deadline)
   const progress = computeProgressPercent(campaign.amountRaised, campaign.goal)
+
+  const { rootComments, repliesByParent } = groupComments(comments)
 
   return (
     <div className="flex flex-col gap-6">
@@ -240,31 +290,102 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
               )}
 
               <div className="flex flex-col gap-4">
-                {comments.length === 0 && (
+                {rootComments.length === 0 && (
                   <p className="text-sm text-slate-500">Be the first to leave a comment.</p>
                 )}
-                {comments.map((comment) => (
-                  <div key={comment.id} className="flex gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-600">
-                      {comment.authorName.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-900">{comment.authorName}</span>
-                        <span className="text-xs text-slate-400">{formatCommentTimestamp(comment.createdAt)}</span>
+                {rootComments.map((comment) => {
+                  const replies = repliesByParent[comment.id] || []
+                  const isExpanded = Boolean(expandedReplies[comment.id])
+
+                  return (
+                  <div key={comment.id} className="flex flex-col gap-3">
+                    <div className="flex gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-600">
+                        {comment.authorName.charAt(0).toUpperCase()}
                       </div>
-                      <p className="text-sm text-slate-600">{comment.text}</p>
-                      {isAuthenticated && (
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-900">{comment.authorName}</span>
+                          <span className="text-xs text-slate-400">{formatCommentTimestamp(comment.createdAt)}</span>
+                        </div>
+                        <p className="text-sm text-slate-600">{comment.text}</p>
+                        {isAuthenticated && (
+                          <button
+                            type="button"
+                            onClick={() => toggleReply(comment.id)}
+                            className="mt-1 self-start cursor-pointer text-xs font-medium text-slate-500 hover:text-indigo-600"
+                          >
+                            Reply
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="ml-11 flex flex-col gap-3">
+                      {replies.length > 0 && !isExpanded && (
                         <button
                           type="button"
-                          className="mt-1 self-start cursor-pointer text-xs font-medium text-slate-500 hover:text-indigo-600"
+                          onClick={() => toggleReplies(comment.id)}
+                          className="self-start cursor-pointer text-xs font-medium text-slate-500 hover:text-indigo-600"
                         >
-                          Reply
+                          {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
                         </button>
+                      )}
+
+                      {isExpanded &&
+                        replies.map((reply) => (
+                          <div key={reply.id} className="flex gap-2.5">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-600">
+                              {reply.authorName.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-slate-900">{reply.authorName}</span>
+                                <span className="text-xs text-slate-400">{formatCommentTimestamp(reply.createdAt)}</span>
+                              </div>
+                              <p className="text-sm text-slate-600">{reply.text}</p>
+                            </div>
+                          </div>
+                        ))}
+
+                      {isExpanded && replies.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => toggleReplies(comment.id)}
+                          className="self-start cursor-pointer text-xs font-medium text-slate-500 hover:text-indigo-600"
+                        >
+                          Hide replies
+                        </button>
+                      )}
+
+                      {replyingToId === comment.id && (
+                        <form onSubmit={(e) => handleSubmitReply(e, comment.id)} className="flex flex-col gap-1">
+                          <div className="relative max-w-md">
+                            <input
+                              type="text"
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              placeholder="Write a reply..."
+                              autoFocus
+                              disabled={isPostingReply}
+                              className="w-full rounded-full border border-slate-200 bg-white py-2 pl-4 pr-10 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/40"
+                            />
+                            <button
+                              type="submit"
+                              disabled={isPostingReply || !replyText.trim()}
+                              aria-label="Send reply"
+                              className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-indigo-600 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <SendIcon />
+                            </button>
+                          </div>
+                          {replyError && <p className="text-xs font-medium text-rose-500">{replyError}</p>}
+                        </form>
                       )}
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}

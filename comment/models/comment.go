@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -34,6 +35,19 @@ func CreateComment(db *gorm.DB, campaignID, authorSub, authorName, text, parentI
 	}
 
 	return comment, nil
+}
+
+func GetCommentByID(db *gorm.DB, id string) (*Comment, error) {
+	var comment Comment
+	err := db.First(&comment, "id = ?", id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &comment, nil
 }
 
 func ListCommentsByCampaign(db *gorm.DB, campaignID string, offset, limit uint64) ([]Comment, int64, error) {
