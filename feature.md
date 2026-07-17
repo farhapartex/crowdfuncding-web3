@@ -84,3 +84,33 @@ Basic plan:
 
 This is just the first version of the plan. I will update this file as the
 project grows and as I learn more.
+
+## V2: Learning Distributed Systems and Microservices
+
+Everything above (contract, backend, frontend) is one monolith today. I want to
+start learning how to build a distributed system with a microservice
+architecture, but I don't want to rewrite everything at once — I want to add
+one small, focused microservice at a time so I actually learn instead of just
+generating a big system I don't understand.
+
+The first microservice I'm building: **Comments Service**.
+
+- Right now, comments on a campaign page are fake — just hardcoded seed data in
+  the frontend (`SEED_COMMENTS`), not connected to any backend at all.
+- Comments are a good first microservice because they don't touch money or the
+  smart contract at all — a comment only needs a campaign id, an author, some
+  text, and optionally a parent comment id (for replies). It's a clean, low-risk
+  bounded context, separate from the main backend's campaign/contract logic.
+- It will be its own service, with its own database, talking to the main
+  backend over gRPC (not REST) so I can learn gRPC directly.
+- The main backend will act as the "front door" for the browser as before
+  (frontend keeps calling normal REST endpoints on the main backend), but for
+  comments, the main backend will be a gRPC *client* calling the new Comments
+  service internally. This is a common real-world pattern (backend-for-frontend
+  talking to internal services over gRPC), and it means the browser never needs
+  to speak gRPC directly.
+
+Other microservice ideas I want to come back to later, once comments are
+working end to end: a notification service, a search/discovery service, an
+analytics/reporting service, and pulling the media/asset upload logic out into
+its own service (a good candidate for learning client-streaming gRPC).
