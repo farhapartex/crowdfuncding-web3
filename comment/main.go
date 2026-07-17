@@ -49,6 +49,11 @@ func main() {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
+	sharedToken := os.Getenv("COMMENT_SERVICE_TOKEN")
+	if sharedToken == "" {
+		log.Fatal("COMMENT_SERVICE_TOKEN must be set")
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "50051"
@@ -59,7 +64,7 @@ func main() {
 		log.Fatalf("failed to listen on port %s: %v", port, err)
 	}
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(server.AuthInterceptor(sharedToken)))
 
 	commentpb.RegisterCommentServiceServer(grpcServer, server.NewCommentServer(gormDB))
 

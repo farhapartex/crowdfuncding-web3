@@ -92,6 +92,17 @@ func main() {
 
 	assetService := services.NewAssetService(gormDB, r2Client, r2Bucket, r2PublicURL)
 
+	commentServiceAddr := os.Getenv("COMMENT_SERVICE_ADDR")
+	commentServiceToken := os.Getenv("COMMENT_SERVICE_TOKEN")
+	if commentServiceAddr == "" || commentServiceToken == "" {
+		log.Fatal("COMMENT_SERVICE_ADDR and COMMENT_SERVICE_TOKEN must be set")
+	}
+
+	commentService, err := services.NewCommentService(commentServiceAddr, commentServiceToken)
+	if err != nil {
+		log.Fatalf("failed to connect to comment service: %v", err)
+	}
+
 	deps := &handlers.Dependencies{
 		AuthService:           services.NewAuthService([]byte(jwtSecret)),
 		Auth0Service:          auth0Service,
@@ -100,6 +111,7 @@ func main() {
 		CampaignService:       services.NewCampaignService(gormDB, crowdFunding, idMaskService, assetService),
 		PublicCampaignService: services.NewPublicCampaignService(gormDB, crowdFunding, idMaskService),
 		WalletService:         services.NewWalletService(gormDB),
+		CommentService:        commentService,
 	}
 
 	services.StartTransactionIndexer(gormDB, crowdFunding, client)

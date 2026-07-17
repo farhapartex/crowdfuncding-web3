@@ -46,6 +46,14 @@ export async function fetchWalletTransactions(address, { offset = 0, limit = 20 
   return response.json()
 }
 
+export async function fetchCampaignComments(campaignId, { offset = 0, limit = 20 } = {}) {
+  const response = await fetch(`${API_V1_URL}/campaigns/${campaignId}/comments?offset=${offset}&limit=${limit}`)
+  if (!response.ok) {
+    throw new Error(`Failed to load comments (status ${response.status})`)
+  }
+  return response.json()
+}
+
 export async function fetchSignInMessage(address) {
   const response = await fetch(`${API_V1_URL}/auth/nonce?address=${address}`)
   if (!response.ok) {

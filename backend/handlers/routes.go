@@ -16,6 +16,7 @@ type Dependencies struct {
 	CampaignService       *services.CampaignService
 	PublicCampaignService *services.PublicCampaignService
 	WalletService         *services.WalletService
+	CommentService        *services.CommentService
 }
 
 func RegisterRoutes(router *gin.Engine, deps *Dependencies) {
@@ -32,4 +33,5 @@ func RegisterRoutes(router *gin.Engine, deps *Dependencies) {
 	registerPublicCampaignRoutes(api, deps)
 	registerProfileRoutes(api, deps)
 	registerWalletRoutes(api, deps)
+	registerCommentRoutes(api, deps)
 }

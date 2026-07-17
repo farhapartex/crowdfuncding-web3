@@ -11,17 +11,21 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     env_file:
       - ./backend/.env
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       RPC_URL: http://host.docker.internal:8545
+      COMMENT_SERVICE_ADDR: comment:50051
     ports:
       - "8080:8080"
     depends_on:
       - postgres
+      - comment
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -35,8 +39,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "50051:50051"
     depends_on:
       - postgres
 

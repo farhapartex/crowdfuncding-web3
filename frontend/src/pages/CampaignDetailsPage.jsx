@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { parseEther } from 'ethers'
-import { fetchCampaign, fetchContributors, fetchPublicProfile } from '../lib/api'
+import { fetchCampaign, fetchContributors, fetchPublicProfile, fetchCampaignComments } from '../lib/api'
 import { getCrowdFundingContract } from '../lib/crowdFundingContract'
 import { shortenAddress, formatEth, formatDate } from '../utils/format'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -9,10 +9,9 @@ import ContributeForm from '../components/ContributeForm'
 import Button from '../components/ui/Button'
 import TabButton from '../components/ui/TabButton'
 
-const SEED_COMMENTS = [
-  { id: 1, author: 'Alex Morgan', text: 'This is such a great initiative, happy to support!', postedAt: '2 days ago' },
-  { id: 2, author: 'Priya Singh', text: 'Following this closely, good luck reaching the goal.', postedAt: '5 hours ago' },
-]
+function formatCommentTimestamp(unixSeconds) {
+  return new Date(unixSeconds * 1000).toLocaleString()
+}
 
 function MessageIcon() {
   return (
@@ -50,7 +49,7 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
   const [ownerDisplayName, setOwnerDisplayName] = useState('')
   const [contributors, setContributors] = useState([])
   const [isContributing, setIsContributing] = useState(false)
-  const [comments, setComments] = useState(SEED_COMMENTS)
+  const [comments, setComments] = useState([])
   const [commentText, setCommentText] = useState('')
   const [showCommentForm, setShowCommentForm] = useState(false)
   const [activeTab, setActiveTab] = useState('story')
@@ -62,6 +61,9 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
       .catch((err) => setError(err.message))
     fetchContributors(id)
       .then(setContributors)
+      .catch(() => {})
+    fetchCampaignComments(id)
+      .then(({ items }) => setComments(items))
       .catch(() => {})
   }, [id])
 
@@ -115,7 +117,10 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
     e.preventDefault()
     if (!commentText.trim()) return
 
-    setComments((prev) => [{ id: Date.now(), author: 'You', text: commentText.trim(), postedAt: 'Just now' }, ...prev])
+    setComments((prev) => [
+      { id: `local-${Date.now()}`, authorName: 'You', text: commentText.trim(), createdAt: Date.now() / 1000 },
+      ...prev,
+    ])
     setCommentText('')
     setShowCommentForm(false)
   }
@@ -222,15 +227,18 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
               )}
 
               <div className="flex flex-col gap-4">
+                {comments.length === 0 && (
+                  <p className="text-sm text-slate-500">Be the first to leave a comment.</p>
+                )}
                 {comments.map((comment) => (
                   <div key={comment.id} className="flex gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-slate-600">
-                      {comment.author.charAt(0).toUpperCase()}
+                      {comment.authorName.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-900">{comment.author}</span>
-                        <span className="text-xs text-slate-400">{comment.postedAt}</span>
+                        <span className="text-sm font-medium text-slate-900">{comment.authorName}</span>
+                        <span className="text-xs text-slate-400">{formatCommentTimestamp(comment.createdAt)}</span>
                       </div>
                       <p className="text-sm text-slate-600">{comment.text}</p>
                       <button
