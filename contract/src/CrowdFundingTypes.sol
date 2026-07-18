@@ -7,12 +7,22 @@ enum CampaignStatus {
     Failed
 }
 
+enum CurrencyMode {
+    EthOnly,
+    TokenOnly,
+    Both
+}
+
 struct Campaign {
     address owner;
     string title;
     string description;
-    uint256 goal;
+    CurrencyMode currencyMode;
+    address token;
+    uint256 goalEth;
+    uint256 goalToken;
     uint256 deadline;
-    uint256 amountRaised;
+    uint256 amountRaisedEth;
+    uint256 amountRaisedToken;
     bool withdrawn;
 }
