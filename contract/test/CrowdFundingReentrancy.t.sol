@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {CrowdFunding} from "../src/CrowdFunding.sol";
-import {Campaign} from "../src/CrowdFundingTypes.sol";
+import {Campaign, CurrencyMode} from "../src/CrowdFundingTypes.sol";
 import {ReentrantRefunder} from "./attackers/ReentrantRefunder.sol";
 import {ReentrantWithdrawer} from "./attackers/ReentrantWithdrawer.sol";
 
@@ -23,7 +23,8 @@ contract CrowdFundingReentrancyTest is Test {
 
     function test_RefundReentrancy_RevertsEntireTransaction() public {
         ReentrantRefunder attacker = new ReentrantRefunder(crowdFunding);
-        uint256 campaignId = crowdFunding.createCampaign(TITLE, DESCRIPTION, GOAL, DURATION);
+        uint256 campaignId =
+            crowdFunding.createCampaign(TITLE, DESCRIPTION, CurrencyMode.EthOnly, address(0), GOAL, 0, DURATION);
 
         attacker.contribute{value: 3 ether}(campaignId);
 
@@ -32,7 +33,7 @@ contract CrowdFundingReentrancyTest is Test {
         vm.expectRevert(CrowdFunding.TransferFailed.selector);
         attacker.attack();
 
-        assertEq(crowdFunding.getContribution(campaignId, address(attacker)), 3 ether);
+        assertEq(crowdFunding.getContributionEth(campaignId, address(attacker)), 3 ether);
         assertEq(address(crowdFunding).balance, 3 ether);
     }
 
@@ -41,7 +42,7 @@ contract CrowdFundingReentrancyTest is Test {
         uint256 campaignId = attacker.createCampaign(TITLE, DESCRIPTION, GOAL, DURATION);
 
         vm.prank(alice);
-        crowdFunding.contribute{value: GOAL}(campaignId);
+        crowdFunding.contributeEth{value: GOAL}(campaignId);
 
         vm.expectRevert(CrowdFunding.TransferFailed.selector);
         attacker.attack();

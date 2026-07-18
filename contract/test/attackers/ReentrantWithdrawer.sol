@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {CrowdFunding} from "../../src/CrowdFunding.sol";
+import {CurrencyMode} from "../../src/CrowdFundingTypes.sol";
 
 contract ReentrantWithdrawer {
     CrowdFunding public immutable crowdFunding;
@@ -16,7 +17,7 @@ contract ReentrantWithdrawer {
         external
         returns (uint256)
     {
-        campaignId = crowdFunding.createCampaign(title, description, goal, duration);
+        campaignId = crowdFunding.createCampaign(title, description, CurrencyMode.EthOnly, address(0), goal, 0, duration);
         return campaignId;
     }
 

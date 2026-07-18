@@ -14,7 +14,7 @@ contract ReentrantRefunder {
 
     function contribute(uint256 _campaignId) external payable {
         campaignId = _campaignId;
-        crowdFunding.contribute{value: msg.value}(_campaignId);
+        crowdFunding.contributeEth{value: msg.value}(_campaignId);
     }
 
     function attack() external {

@@ -7,7 +7,7 @@ contract CrowdFundingV2 is CrowdFunding {
     function totalRaised() external view returns (uint256 total) {
         uint256 count = campaigns.length;
         for (uint256 i = 0; i < count; i++) {
-            total += campaigns[i].amountRaised;
+            total += campaigns[i].amountRaisedEth;
         }
     }
 }

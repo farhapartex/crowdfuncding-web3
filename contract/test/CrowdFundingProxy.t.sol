@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {CrowdFunding} from "../src/CrowdFunding.sol";
 import {CrowdFundingProxy} from "../src/CrowdFundingProxy.sol";
+import {CurrencyMode} from "../src/CrowdFundingTypes.sol";
 import {CrowdFundingV2} from "./mocks/CrowdFundingV2.sol";
 
 contract CrowdFundingProxyTest is Test {
@@ -33,13 +34,14 @@ contract CrowdFundingProxyTest is Test {
     }
 
     function test_CallsThroughProxyReachImplementationLogic() public {
-        uint256 campaignId = crowdFunding.createCampaign(TITLE, DESCRIPTION, GOAL, DURATION);
+        uint256 campaignId =
+            crowdFunding.createCampaign(TITLE, DESCRIPTION, CurrencyMode.EthOnly, address(0), GOAL, 0, DURATION);
 
         vm.prank(alice);
-        crowdFunding.contribute{value: 3 ether}(campaignId);
+        crowdFunding.contributeEth{value: 3 ether}(campaignId);
 
-        assertEq(crowdFunding.getContribution(campaignId, alice), 3 ether);
-        assertEq(crowdFunding.getCampaign(campaignId).amountRaised, 3 ether);
+        assertEq(crowdFunding.getContributionEth(campaignId, alice), 3 ether);
+        assertEq(crowdFunding.getCampaign(campaignId).amountRaisedEth, 3 ether);
     }
 
     function test_UpgradeTo_RevertsWhenCallerIsNotAdmin() public {
@@ -50,10 +52,11 @@ contract CrowdFundingProxyTest is Test {
     }
 
     function test_UpgradeTo_PreservesExistingDataAndAddsNewLogic() public {
-        uint256 campaignId = crowdFunding.createCampaign(TITLE, DESCRIPTION, GOAL, DURATION);
+        uint256 campaignId =
+            crowdFunding.createCampaign(TITLE, DESCRIPTION, CurrencyMode.EthOnly, address(0), GOAL, 0, DURATION);
 
         vm.prank(alice);
-        crowdFunding.contribute{value: 3 ether}(campaignId);
+        crowdFunding.contributeEth{value: 3 ether}(campaignId);
 
         CrowdFundingV2 implementationV2 = new CrowdFundingV2();
 
@@ -62,8 +65,8 @@ contract CrowdFundingProxyTest is Test {
 
         assertEq(proxy.implementation(), address(implementationV2));
 
-        assertEq(crowdFunding.getContribution(campaignId, alice), 3 ether);
-        assertEq(crowdFunding.getCampaign(campaignId).amountRaised, 3 ether);
+        assertEq(crowdFunding.getContributionEth(campaignId, alice), 3 ether);
+        assertEq(crowdFunding.getCampaign(campaignId).amountRaisedEth, 3 ether);
 
         CrowdFundingV2 crowdFundingV2 = CrowdFundingV2(address(proxy));
         assertEq(crowdFundingV2.totalRaised(), 3 ether);
