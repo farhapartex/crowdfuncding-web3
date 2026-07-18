@@ -5,6 +5,9 @@ import './index.css'
 import App from './App.jsx'
 import Auth0ProviderWithNavigate from './auth/Auth0ProviderWithNavigate.jsx'
 import { CurrentUserProvider } from './auth/CurrentUserContext.jsx'
+import { initFrontendObservability } from './lib/faro.js'
+
+initFrontendObservability()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

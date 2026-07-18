@@ -1,0 +1,37 @@
+faro.receiver "default" {
+  server {
+    listen_address       = "0.0.0.0"
+    listen_port           = 12347
+    cors_allowed_origins  = ["*"]
+  }
+
+  output {
+    logs = [loki.process.faro.receiver]
+  }
+}
+
+loki.process "faro" {
+  forward_to = [loki.write.default.receiver]
+
+  stage.logfmt {
+    mapping = {
+      "kind"     = "kind",
+      "level"    = "level",
+      "app_name" = "app_name",
+    }
+  }
+
+  stage.labels {
+    values = {
+      kind     = "kind",
+      level    = "level",
+      app_name = "app_name",
+    }
+  }
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

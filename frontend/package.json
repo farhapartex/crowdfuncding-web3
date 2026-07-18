@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.20.0",
+    "@grafana/faro-web-sdk": "^2.8.2",
     "@tailwindcss/vite": "^4.3.2",
     "ethers": "^6.17.0",
     "react": "^19.2.7",
