@@ -1,6 +1,14 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 const API_V1_URL = `${API_BASE_URL}/api/v1`
 
+export async function fetchSupportedTokens() {
+  const response = await fetch(`${API_V1_URL}/tokens`)
+  if (!response.ok) {
+    throw new Error(`Failed to load supported tokens (status ${response.status})`)
+  }
+  return response.json()
+}
+
 export async function fetchCampaigns({ offset = 0, limit = 20, category = '' } = {}) {
   const params = new URLSearchParams({ offset, limit })
   if (category) params.set('category', category)

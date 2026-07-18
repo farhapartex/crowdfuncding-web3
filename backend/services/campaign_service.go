@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	"gorm.io/gorm"
 
 	"crowdfunding-backend/contract"
@@ -18,10 +19,11 @@ type CampaignService struct {
 	crowdFunding *contract.CrowdFunding
 	idMask       *IDMaskService
 	assets       *AssetService
+	tokens       *TokenService
 }
 
-func NewCampaignService(db *gorm.DB, crowdFunding *contract.CrowdFunding, idMask *IDMaskService, assets *AssetService) *CampaignService {
-	return &CampaignService{db: db, crowdFunding: crowdFunding, idMask: idMask, assets: assets}
+func NewCampaignService(db *gorm.DB, crowdFunding *contract.CrowdFunding, idMask *IDMaskService, assets *AssetService, tokens *TokenService) *CampaignService {
+	return &CampaignService{db: db, crowdFunding: crowdFunding, idMask: idMask, assets: assets, tokens: tokens}
 }
 
 type CreateCampaignInput struct {
@@ -29,10 +31,13 @@ type CreateCampaignInput struct {
 	Category       string
 	Title          string
 	Description    string
-	TargetEth      string
 	DurationDays   uint32
 	FundraisingFor string
 	AssetIDs       []uint64
+	CurrencyMode   string
+	TargetEth      string
+	TokenAddress   string
+	GoalToken      string
 }
 
 type PublishCampaignInput struct {
@@ -68,7 +73,10 @@ func (s *CampaignService) ListMyCampaigns(sub string, offset, limit uint64) (ite
 			"id":             maskedID,
 			"title":          campaign.Title,
 			"description":    campaign.Description,
+			"currencyMode":   campaign.CurrencyMode,
 			"targetEth":      campaign.TargetEth,
+			"tokenSymbol":    campaign.TokenSymbol,
+			"goalToken":      campaign.GoalToken,
 			"country":        campaign.Country,
 			"category":       campaign.Category,
 			"durationDays":   campaign.DurationDays,
@@ -82,9 +90,56 @@ func (s *CampaignService) ListMyCampaigns(sub string, offset, limit uint64) (ite
 	return items, total, nil
 }
 
+func (s *CampaignService) resolveToken(tokenAddress string) (*SupportedToken, error) {
+	if tokenAddress == "" {
+		return nil, NewValidationError("tokenAddress is required")
+	}
+
+	token := s.tokens.Find(tokenAddress)
+	if token == nil {
+		return nil, NewValidationError("unsupported token address")
+	}
+
+	return token, nil
+}
+
 func (s *CampaignService) CreateCampaign(sub string, input CreateCampaignInput) (map[string]any, error) {
 	if !models.IsValidCampaignCategory(input.Category) {
 		return nil, NewValidationError("invalid category")
+	}
+	if !models.IsValidCurrencyMode(input.CurrencyMode) {
+		return nil, NewValidationError("invalid currency mode")
+	}
+
+	var tokenAddress, tokenSymbol *string
+	var tokenDecimals *uint8
+	var goalToken *string
+
+	switch input.CurrencyMode {
+	case models.CurrencyModeEth:
+		if input.TargetEth == "" {
+			return nil, NewValidationError("targetEth is required")
+		}
+	case models.CurrencyModeToken:
+		token, err := s.resolveToken(input.TokenAddress)
+		if err != nil {
+			return nil, err
+		}
+		if input.GoalToken == "" {
+			return nil, NewValidationError("goalToken is required")
+		}
+		tokenAddress, tokenSymbol, tokenDecimals = &token.Address, &token.Symbol, &token.Decimals
+		goalToken = &input.GoalToken
+	case models.CurrencyModeBoth:
+		if input.TargetEth == "" || input.GoalToken == "" {
+			return nil, NewValidationError("targetEth and goalToken are both required")
+		}
+		token, err := s.resolveToken(input.TokenAddress)
+		if err != nil {
+			return nil, err
+		}
+		tokenAddress, tokenSymbol, tokenDecimals = &token.Address, &token.Symbol, &token.Decimals
+		goalToken = &input.GoalToken
 	}
 
 	assets, err := models.GetAssetsByIDs(s.db, input.AssetIDs)
@@ -100,7 +155,21 @@ func (s *CampaignService) CreateCampaign(sub string, input CreateCampaignInput) 
 		}
 	}
 
-	campaign, err := models.CreateCampaign(s.db, sub, input.Country, input.Category, input.Title, input.Description, input.TargetEth, input.DurationDays, input.FundraisingFor)
+	campaign, err := models.CreateCampaign(s.db, models.CreateCampaignParams{
+		OwnerSub:       sub,
+		Country:        input.Country,
+		Category:       input.Category,
+		Title:          input.Title,
+		Description:    input.Description,
+		CurrencyMode:   input.CurrencyMode,
+		TargetEth:      input.TargetEth,
+		TokenAddress:   tokenAddress,
+		TokenSymbol:    tokenSymbol,
+		TokenDecimals:  tokenDecimals,
+		GoalToken:      goalToken,
+		DurationDays:   input.DurationDays,
+		FundraisingFor: input.FundraisingFor,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +190,12 @@ func (s *CampaignService) CreateCampaign(sub string, input CreateCampaignInput) 
 		"category":       campaign.Category,
 		"title":          campaign.Title,
 		"description":    campaign.Description,
+		"currencyMode":   campaign.CurrencyMode,
 		"targetEth":      campaign.TargetEth,
+		"tokenAddress":   campaign.TokenAddress,
+		"tokenSymbol":    campaign.TokenSymbol,
+		"tokenDecimals":  campaign.TokenDecimals,
+		"goalToken":      campaign.GoalToken,
 		"durationDays":   campaign.DurationDays,
 		"fundraisingFor": campaign.FundraisingFor,
 		"status":         campaign.Status,
@@ -167,7 +241,12 @@ func (s *CampaignService) GetMyCampaign(sub, maskedID string) (map[string]any, e
 		"category":          campaign.Category,
 		"title":             campaign.Title,
 		"description":       campaign.Description,
+		"currencyMode":      campaign.CurrencyMode,
 		"targetEth":         campaign.TargetEth,
+		"tokenAddress":      campaign.TokenAddress,
+		"tokenSymbol":       campaign.TokenSymbol,
+		"tokenDecimals":     campaign.TokenDecimals,
+		"goalToken":         campaign.GoalToken,
 		"durationDays":      campaign.DurationDays,
 		"fundraisingFor":    campaign.FundraisingFor,
 		"status":            campaign.Status,
@@ -187,8 +266,10 @@ func (s *CampaignService) GetMyCampaign(sub, maskedID string) (map[string]any, e
 			response["onChainAvailable"] = false
 		} else {
 			response["onChainAvailable"] = true
-			response["goal"] = chainCampaign.Goal.String()
-			response["amountRaised"] = chainCampaign.AmountRaised.String()
+			response["goalEth"] = chainCampaign.GoalEth.String()
+			response["goalTokenOnChain"] = chainCampaign.GoalToken.String()
+			response["amountRaisedEth"] = chainCampaign.AmountRaisedEth.String()
+			response["amountRaisedToken"] = chainCampaign.AmountRaisedToken.String()
 			response["deadline"] = chainCampaign.Deadline.String()
 			response["withdrawn"] = chainCampaign.Withdrawn
 			response["onChainStatus"] = campaignStatus(chainCampaign)
@@ -245,6 +326,9 @@ func (s *CampaignService) PublishCampaign(sub, maskedID string, input PublishCam
 	if !strings.EqualFold(onChainCampaign.Owner.Hex(), input.WalletAddress) {
 		return nil, NewValidationError("on-chain campaign owner does not match the provided wallet address")
 	}
+	if err := s.verifyOnChainCurrencyMatches(campaign, onChainCampaign); err != nil {
+		return nil, err
+	}
 
 	updated, err := models.PublishCampaign(s.db, campaign.ID, input.WalletAddress, input.OnChainCampaignID)
 	if err != nil {
@@ -271,6 +355,46 @@ func (s *CampaignService) PublishCampaign(sub, maskedID string, input PublishCam
 		"onChainCampaignId": updated.OnChainCampaignID,
 		"publishedAt":       updated.PublishedAt,
 	}, nil
+}
+
+func currencyModeToOnChain(mode string) (uint8, bool) {
+	switch mode {
+	case models.CurrencyModeEth:
+		return 0, true
+	case models.CurrencyModeToken:
+		return 1, true
+	case models.CurrencyModeBoth:
+		return 2, true
+	default:
+		return 0, false
+	}
+}
+
+func (s *CampaignService) verifyOnChainCurrencyMatches(dbCampaign *models.Campaign, onChainCampaign contract.Campaign) error {
+	expectedMode, ok := currencyModeToOnChain(dbCampaign.CurrencyMode)
+	if !ok {
+		return NewValidationError("invalid currency mode")
+	}
+	if onChainCampaign.CurrencyMode != expectedMode {
+		return NewValidationError("on-chain currency mode does not match the draft campaign")
+	}
+
+	if dbCampaign.CurrencyMode == models.CurrencyModeEth {
+		if onChainCampaign.Token != (common.Address{}) {
+			return NewValidationError("on-chain token address does not match the draft campaign")
+		}
+		return nil
+	}
+
+	expectedToken := ""
+	if dbCampaign.TokenAddress != nil {
+		expectedToken = *dbCampaign.TokenAddress
+	}
+	if !strings.EqualFold(onChainCampaign.Token.Hex(), expectedToken) {
+		return NewValidationError("on-chain token address does not match the draft campaign")
+	}
+
+	return nil
 }
 
 func (s *CampaignService) ArchiveCampaign(sub, maskedID, note string) (map[string]any, error) {

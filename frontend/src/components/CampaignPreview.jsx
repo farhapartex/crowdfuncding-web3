@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchCampaignComments } from '../lib/api'
-import { formatEthDisplay, formatEth, formatDate } from '../utils/format'
+import { formatEthDisplay, formatEth, formatTokenAmount, formatDate } from '../utils/format'
 import { formatCommentTimestamp, groupComments } from '../utils/comments'
 import ArchiveCampaignModal from './ArchiveCampaignModal'
 import Button from './ui/Button'
@@ -9,7 +9,7 @@ import TabButton from './ui/TabButton'
 
 function computeProgressPercent(amountRaised, goal) {
   if (!goal || goal === '0') return 0
-  const percent = (BigInt(amountRaised) * 10000n) / BigInt(goal)
+  const percent = (BigInt(amountRaised || '0') * 10000n) / BigInt(goal)
   return Math.min(100, Number(percent) / 100)
 }
 
@@ -42,12 +42,18 @@ function CampaignPreview({
   const isPublished = campaign.status === 'published'
   const isArchived = campaign.status === 'archived'
   const chainDataAvailable = (isPublished || isArchived) && campaign.onChainAvailable !== false
-  const progress = chainDataAvailable ? computeProgressPercent(campaign.amountRaised, campaign.goal) : 0
-  const canWithdraw =
+  const currencyMode = campaign.currencyMode
+  const ethProgress = chainDataAvailable ? computeProgressPercent(campaign.amountRaisedEth, campaign.goalEth) : 0
+  const tokenProgress = chainDataAvailable
+    ? computeProgressPercent(campaign.amountRaisedToken, campaign.goalTokenOnChain)
+    : 0
+  const ethGoalReached =
+    chainDataAvailable && BigInt(campaign.goalEth || '0') > 0n && BigInt(campaign.amountRaisedEth || '0') >= BigInt(campaign.goalEth || '0')
+  const tokenGoalReached =
     chainDataAvailable &&
-    !campaign.withdrawn &&
-    onWithdraw &&
-    BigInt(campaign.amountRaised || '0') >= BigInt(campaign.goal || '0')
+    BigInt(campaign.goalTokenOnChain || '0') > 0n &&
+    BigInt(campaign.amountRaisedToken || '0') >= BigInt(campaign.goalTokenOnChain || '0')
+  const canWithdraw = chainDataAvailable && !campaign.withdrawn && onWithdraw && (ethGoalReached || tokenGoalReached)
   const [activeTab, setActiveTab] = useState('story')
   const [comments, setComments] = useState([])
   const [expandedReplies, setExpandedReplies] = useState({})
@@ -238,25 +244,69 @@ function CampaignPreview({
         </div>
 
         <div className="flex flex-col gap-4 self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:sticky lg:top-24">
-          <div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-indigo-600" style={{ width: `${progress}%` }} />
-            </div>
+          <div className="flex flex-col gap-4">
             {chainDataAvailable ? (
               <>
-                <p className="mt-3 text-lg font-semibold text-slate-900">{formatEth(campaign.amountRaised)} raised</p>
-                <p className="text-sm text-slate-500">of {formatEth(campaign.goal)} goal</p>
-                <p className="mt-2 text-xs text-slate-400">Ends {formatDate(campaign.deadline)}</p>
+                {(currencyMode === 'eth' || currencyMode === 'both') && (
+                  <div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-indigo-600" style={{ width: `${ethProgress}%` }} />
+                    </div>
+                    <p className="mt-3 text-lg font-semibold text-slate-900">
+                      {formatEth(campaign.amountRaisedEth)} raised
+                    </p>
+                    <p className="text-sm text-slate-500">of {formatEth(campaign.goalEth)} goal</p>
+                  </div>
+                )}
+                {(currencyMode === 'token' || currencyMode === 'both') && (
+                  <div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full bg-indigo-600" style={{ width: `${tokenProgress}%` }} />
+                    </div>
+                    <p className="mt-3 text-lg font-semibold text-slate-900">
+                      {formatTokenAmount(campaign.amountRaisedToken, campaign.tokenDecimals, campaign.tokenSymbol)} raised
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      of {formatTokenAmount(campaign.goalTokenOnChain, campaign.tokenDecimals, campaign.tokenSymbol)} goal
+                    </p>
+                  </div>
+                )}
+                <p className="text-xs text-slate-400">Ends {formatDate(campaign.deadline)}</p>
               </>
             ) : isPublished || isArchived ? (
-              <p className="mt-3 text-sm font-medium text-amber-600">
-                Live blockchain data is temporarily unavailable. Please refresh shortly.
-              </p>
+              <>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full w-0 rounded-full bg-indigo-600" />
+                </div>
+                <p className="text-sm font-medium text-amber-600">
+                  Live blockchain data is temporarily unavailable. Please refresh shortly.
+                </p>
+              </>
             ) : (
               <>
-                <p className="mt-3 text-lg font-semibold text-slate-900">0 ETH raised</p>
-                <p className="text-sm text-slate-500">of {formatEthDisplay(campaign.targetEth)} ETH goal</p>
-                <p className="mt-2 text-xs text-slate-400">Runs for {campaign.durationDays} days once published</p>
+                {(currencyMode === 'eth' || currencyMode === 'both') && (
+                  <div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full w-0 rounded-full bg-indigo-600" />
+                    </div>
+                    <p className="mt-3 text-lg font-semibold text-slate-900">0 ETH raised</p>
+                    <p className="text-sm text-slate-500">of {formatEthDisplay(campaign.targetEth)} ETH goal</p>
+                  </div>
+                )}
+                {(currencyMode === 'token' || currencyMode === 'both') && (
+                  <div>
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full w-0 rounded-full bg-indigo-600" />
+                    </div>
+                    <p className="mt-3 text-lg font-semibold text-slate-900">
+                      0 {campaign.tokenSymbol || 'token'} raised
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      of {formatEthDisplay(campaign.goalToken)} {campaign.tokenSymbol || 'token'} goal
+                    </p>
+                  </div>
+                )}
+                <p className="text-xs text-slate-400">Runs for {campaign.durationDays} days once published</p>
               </>
             )}
           </div>

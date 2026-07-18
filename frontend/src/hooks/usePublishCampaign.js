@@ -1,10 +1,12 @@
 import { useCallback, useState } from 'react'
-import { parseEther } from 'ethers'
+import { parseEther, parseUnits, ZeroAddress } from 'ethers'
 import { getCrowdFundingContract } from '../lib/crowdFundingContract'
 import { publishMyCampaign } from '../lib/api'
 import { useAccessToken } from './useAccessToken'
 
 const SECONDS_PER_DAY = 24 * 60 * 60
+
+const CURRENCY_MODE_TO_ONCHAIN = { eth: 0, token: 1, both: 2 }
 
 export function usePublishCampaign({ campaign, provider, account, onConnectWallet, onPublished }) {
   const getAccessToken = useAccessToken()
@@ -54,10 +56,24 @@ export function usePublishCampaign({ campaign, provider, account, onConnectWalle
       const signer = await activeProvider.getSigner()
       const crowdFunding = getCrowdFundingContract(signer)
 
-      const goalInWei = parseEther(campaign.targetEth)
+      const currencyMode = CURRENCY_MODE_TO_ONCHAIN[campaign.currencyMode]
+      const isEthMode = campaign.currencyMode === 'eth' || campaign.currencyMode === 'both'
+      const isTokenMode = campaign.currencyMode === 'token' || campaign.currencyMode === 'both'
+
+      const goalEth = isEthMode ? parseEther(campaign.targetEth) : 0n
+      const goalToken = isTokenMode ? parseUnits(campaign.goalToken, campaign.tokenDecimals ?? 18) : 0n
+      const tokenAddress = isTokenMode ? campaign.tokenAddress : ZeroAddress
       const durationInSeconds = Number(campaign.durationDays) * SECONDS_PER_DAY
 
-      const tx = await crowdFunding.createCampaign(campaign.title, '', goalInWei, durationInSeconds)
+      const tx = await crowdFunding.createCampaign(
+        campaign.title,
+        '',
+        currencyMode,
+        tokenAddress,
+        goalEth,
+        goalToken,
+        durationInSeconds,
+      )
 
       setPhase('confirming')
       const receipt = await tx.wait()

@@ -36,7 +36,10 @@ func registerCampaignRoutes(api *gin.RouterGroup, deps *Dependencies) {
 			Category       string   `json:"category" binding:"required"`
 			Title          string   `json:"title" binding:"required"`
 			Description    string   `json:"description"`
-			TargetEth      string   `json:"targetEth" binding:"required"`
+			CurrencyMode   string   `json:"currencyMode" binding:"required"`
+			TargetEth      string   `json:"targetEth"`
+			TokenAddress   string   `json:"tokenAddress"`
+			GoalToken      string   `json:"goalToken"`
 			DurationDays   uint32   `json:"durationDays" binding:"required,min=1,max=365"`
 			FundraisingFor string   `json:"fundraisingFor" binding:"required"`
 			AssetIDs       []uint64 `json:"assetIds" binding:"required,min=1"`
@@ -51,7 +54,10 @@ func registerCampaignRoutes(api *gin.RouterGroup, deps *Dependencies) {
 			Category:       req.Category,
 			Title:          req.Title,
 			Description:    req.Description,
+			CurrencyMode:   req.CurrencyMode,
 			TargetEth:      req.TargetEth,
+			TokenAddress:   req.TokenAddress,
+			GoalToken:      req.GoalToken,
 			DurationDays:   req.DurationDays,
 			FundraisingFor: req.FundraisingFor,
 			AssetIDs:       req.AssetIDs,

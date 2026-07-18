@@ -31,18 +31,22 @@ var (
 
 // Campaign is an auto generated low-level Go binding around an user-defined struct.
 type Campaign struct {
-	Owner        common.Address
-	Title        string
-	Description  string
-	Goal         *big.Int
-	Deadline     *big.Int
-	AmountRaised *big.Int
-	Withdrawn    bool
+	Owner             common.Address
+	Title             string
+	Description       string
+	CurrencyMode      uint8
+	Token             common.Address
+	GoalEth           *big.Int
+	GoalToken         *big.Int
+	Deadline          *big.Int
+	AmountRaisedEth   *big.Int
+	AmountRaisedToken *big.Int
+	Withdrawn         bool
 }
 
 // CrowdFundingMetaData contains all meta data concerning the CrowdFunding contract.
 var CrowdFundingMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"function\",\"name\":\"MAX_PAGE_SIZE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"campaignCount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"campaigns\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"title\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"description\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"goal\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountRaised\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"withdrawn\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"closeCampaign\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"contribute\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"contributions\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"createCampaign\",\"inputs\":[{\"name\":\"title\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"description\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"goal\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"durationInSeconds\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getCampaign\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structCampaign\",\"components\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"title\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"description\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"goal\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountRaised\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"withdrawn\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCampaignStatus\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"enumCampaignStatus\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCampaigns\",\"inputs\":[{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"limit\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple[]\",\"internalType\":\"structCampaign[]\",\"components\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"title\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"description\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"goal\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountRaised\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"withdrawn\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getContribution\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"contributor\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"refund\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdraw\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"CampaignClosed\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"CampaignCreated\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"goal\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ContributionMade\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"contributor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ContributionRefunded\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"contributor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FundsWithdrawn\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"CampaignDoesNotExist\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CampaignHasEnded\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CampaignStillActive\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ContributionMustBeGreaterThanZero\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"DurationMustBeGreaterThanZero\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FundsAlreadyWithdrawn\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"GoalAlreadyReached\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"GoalMustBeGreaterThanZero\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"GoalNotReached\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoContributionToRefund\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotCampaignOwner\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TransferFailed\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"MAX_PAGE_SIZE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"campaignCount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"campaigns\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"title\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"description\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"currencyMode\",\"type\":\"uint8\",\"internalType\":\"enumCurrencyMode\"},{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"goalEth\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"goalToken\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountRaisedEth\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountRaisedToken\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"withdrawn\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"closeCampaign\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"contributeEth\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"contributeToken\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"contributionsEth\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"contributionsToken\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"createCampaign\",\"inputs\":[{\"name\":\"title\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"description\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"currencyMode\",\"type\":\"uint8\",\"internalType\":\"enumCurrencyMode\"},{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"goalEth\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"goalToken\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"durationInSeconds\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getCampaign\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structCampaign\",\"components\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"title\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"description\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"currencyMode\",\"type\":\"uint8\",\"internalType\":\"enumCurrencyMode\"},{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"goalEth\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"goalToken\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountRaisedEth\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountRaisedToken\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"withdrawn\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCampaignStatus\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"enumCampaignStatus\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getCampaigns\",\"inputs\":[{\"name\":\"offset\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"limit\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple[]\",\"internalType\":\"structCampaign[]\",\"components\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"title\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"description\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"currencyMode\",\"type\":\"uint8\",\"internalType\":\"enumCurrencyMode\"},{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"goalEth\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"goalToken\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountRaisedEth\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountRaisedToken\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"withdrawn\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getContributionEth\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"contributor\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getContributionToken\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"contributor\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"refund\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdraw\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"CampaignClosed\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"CampaignCreated\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"currencyMode\",\"type\":\"uint8\",\"indexed\":false,\"internalType\":\"enumCurrencyMode\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"goalEth\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"goalToken\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ContributionMade\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"contributor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ContributionRefunded\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"contributor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"ethAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"tokenAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FundsWithdrawn\",\"inputs\":[{\"name\":\"campaignId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"ethAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"tokenAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"CampaignDoesNotExist\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CampaignHasEnded\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CampaignStillActive\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ContributionMustBeGreaterThanZero\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"DurationMustBeGreaterThanZero\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EthNotAccepted\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FundsAlreadyWithdrawn\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"GoalAlreadyReached\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"GoalMustBeGreaterThanZero\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"GoalNotReached\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NoContributionToRefund\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotCampaignOwner\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"TokenAddressRequired\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TokenNotAccepted\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TransferFailed\",\"inputs\":[]}]",
 }
 
 // CrowdFundingABI is the input ABI used to generate the binding from.
@@ -255,27 +259,35 @@ func (_CrowdFunding *CrowdFundingCallerSession) CampaignCount() (*big.Int, error
 
 // Campaigns is a free data retrieval call binding the contract method 0x141961bc.
 //
-// Solidity: function campaigns(uint256 ) view returns(address owner, string title, string description, uint256 goal, uint256 deadline, uint256 amountRaised, bool withdrawn)
+// Solidity: function campaigns(uint256 ) view returns(address owner, string title, string description, uint8 currencyMode, address token, uint256 goalEth, uint256 goalToken, uint256 deadline, uint256 amountRaisedEth, uint256 amountRaisedToken, bool withdrawn)
 func (_CrowdFunding *CrowdFundingCaller) Campaigns(opts *bind.CallOpts, arg0 *big.Int) (struct {
-	Owner        common.Address
-	Title        string
-	Description  string
-	Goal         *big.Int
-	Deadline     *big.Int
-	AmountRaised *big.Int
-	Withdrawn    bool
+	Owner             common.Address
+	Title             string
+	Description       string
+	CurrencyMode      uint8
+	Token             common.Address
+	GoalEth           *big.Int
+	GoalToken         *big.Int
+	Deadline          *big.Int
+	AmountRaisedEth   *big.Int
+	AmountRaisedToken *big.Int
+	Withdrawn         bool
 }, error) {
 	var out []interface{}
 	err := _CrowdFunding.contract.Call(opts, &out, "campaigns", arg0)
 
 	outstruct := new(struct {
-		Owner        common.Address
-		Title        string
-		Description  string
-		Goal         *big.Int
-		Deadline     *big.Int
-		AmountRaised *big.Int
-		Withdrawn    bool
+		Owner             common.Address
+		Title             string
+		Description       string
+		CurrencyMode      uint8
+		Token             common.Address
+		GoalEth           *big.Int
+		GoalToken         *big.Int
+		Deadline          *big.Int
+		AmountRaisedEth   *big.Int
+		AmountRaisedToken *big.Int
+		Withdrawn         bool
 	})
 	if err != nil {
 		return *outstruct, err
@@ -284,10 +296,14 @@ func (_CrowdFunding *CrowdFundingCaller) Campaigns(opts *bind.CallOpts, arg0 *bi
 	outstruct.Owner = *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
 	outstruct.Title = *abi.ConvertType(out[1], new(string)).(*string)
 	outstruct.Description = *abi.ConvertType(out[2], new(string)).(*string)
-	outstruct.Goal = *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
-	outstruct.Deadline = *abi.ConvertType(out[4], new(*big.Int)).(**big.Int)
-	outstruct.AmountRaised = *abi.ConvertType(out[5], new(*big.Int)).(**big.Int)
-	outstruct.Withdrawn = *abi.ConvertType(out[6], new(bool)).(*bool)
+	outstruct.CurrencyMode = *abi.ConvertType(out[3], new(uint8)).(*uint8)
+	outstruct.Token = *abi.ConvertType(out[4], new(common.Address)).(*common.Address)
+	outstruct.GoalEth = *abi.ConvertType(out[5], new(*big.Int)).(**big.Int)
+	outstruct.GoalToken = *abi.ConvertType(out[6], new(*big.Int)).(**big.Int)
+	outstruct.Deadline = *abi.ConvertType(out[7], new(*big.Int)).(**big.Int)
+	outstruct.AmountRaisedEth = *abi.ConvertType(out[8], new(*big.Int)).(**big.Int)
+	outstruct.AmountRaisedToken = *abi.ConvertType(out[9], new(*big.Int)).(**big.Int)
+	outstruct.Withdrawn = *abi.ConvertType(out[10], new(bool)).(*bool)
 
 	return *outstruct, err
 
@@ -295,40 +311,48 @@ func (_CrowdFunding *CrowdFundingCaller) Campaigns(opts *bind.CallOpts, arg0 *bi
 
 // Campaigns is a free data retrieval call binding the contract method 0x141961bc.
 //
-// Solidity: function campaigns(uint256 ) view returns(address owner, string title, string description, uint256 goal, uint256 deadline, uint256 amountRaised, bool withdrawn)
+// Solidity: function campaigns(uint256 ) view returns(address owner, string title, string description, uint8 currencyMode, address token, uint256 goalEth, uint256 goalToken, uint256 deadline, uint256 amountRaisedEth, uint256 amountRaisedToken, bool withdrawn)
 func (_CrowdFunding *CrowdFundingSession) Campaigns(arg0 *big.Int) (struct {
-	Owner        common.Address
-	Title        string
-	Description  string
-	Goal         *big.Int
-	Deadline     *big.Int
-	AmountRaised *big.Int
-	Withdrawn    bool
+	Owner             common.Address
+	Title             string
+	Description       string
+	CurrencyMode      uint8
+	Token             common.Address
+	GoalEth           *big.Int
+	GoalToken         *big.Int
+	Deadline          *big.Int
+	AmountRaisedEth   *big.Int
+	AmountRaisedToken *big.Int
+	Withdrawn         bool
 }, error) {
 	return _CrowdFunding.Contract.Campaigns(&_CrowdFunding.CallOpts, arg0)
 }
 
 // Campaigns is a free data retrieval call binding the contract method 0x141961bc.
 //
-// Solidity: function campaigns(uint256 ) view returns(address owner, string title, string description, uint256 goal, uint256 deadline, uint256 amountRaised, bool withdrawn)
+// Solidity: function campaigns(uint256 ) view returns(address owner, string title, string description, uint8 currencyMode, address token, uint256 goalEth, uint256 goalToken, uint256 deadline, uint256 amountRaisedEth, uint256 amountRaisedToken, bool withdrawn)
 func (_CrowdFunding *CrowdFundingCallerSession) Campaigns(arg0 *big.Int) (struct {
-	Owner        common.Address
-	Title        string
-	Description  string
-	Goal         *big.Int
-	Deadline     *big.Int
-	AmountRaised *big.Int
-	Withdrawn    bool
+	Owner             common.Address
+	Title             string
+	Description       string
+	CurrencyMode      uint8
+	Token             common.Address
+	GoalEth           *big.Int
+	GoalToken         *big.Int
+	Deadline          *big.Int
+	AmountRaisedEth   *big.Int
+	AmountRaisedToken *big.Int
+	Withdrawn         bool
 }, error) {
 	return _CrowdFunding.Contract.Campaigns(&_CrowdFunding.CallOpts, arg0)
 }
 
-// Contributions is a free data retrieval call binding the contract method 0x3d891f59.
+// ContributionsEth is a free data retrieval call binding the contract method 0xdac9998e.
 //
-// Solidity: function contributions(uint256 , address ) view returns(uint256)
-func (_CrowdFunding *CrowdFundingCaller) Contributions(opts *bind.CallOpts, arg0 *big.Int, arg1 common.Address) (*big.Int, error) {
+// Solidity: function contributionsEth(uint256 , address ) view returns(uint256)
+func (_CrowdFunding *CrowdFundingCaller) ContributionsEth(opts *bind.CallOpts, arg0 *big.Int, arg1 common.Address) (*big.Int, error) {
 	var out []interface{}
-	err := _CrowdFunding.contract.Call(opts, &out, "contributions", arg0, arg1)
+	err := _CrowdFunding.contract.Call(opts, &out, "contributionsEth", arg0, arg1)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -340,23 +364,54 @@ func (_CrowdFunding *CrowdFundingCaller) Contributions(opts *bind.CallOpts, arg0
 
 }
 
-// Contributions is a free data retrieval call binding the contract method 0x3d891f59.
+// ContributionsEth is a free data retrieval call binding the contract method 0xdac9998e.
 //
-// Solidity: function contributions(uint256 , address ) view returns(uint256)
-func (_CrowdFunding *CrowdFundingSession) Contributions(arg0 *big.Int, arg1 common.Address) (*big.Int, error) {
-	return _CrowdFunding.Contract.Contributions(&_CrowdFunding.CallOpts, arg0, arg1)
+// Solidity: function contributionsEth(uint256 , address ) view returns(uint256)
+func (_CrowdFunding *CrowdFundingSession) ContributionsEth(arg0 *big.Int, arg1 common.Address) (*big.Int, error) {
+	return _CrowdFunding.Contract.ContributionsEth(&_CrowdFunding.CallOpts, arg0, arg1)
 }
 
-// Contributions is a free data retrieval call binding the contract method 0x3d891f59.
+// ContributionsEth is a free data retrieval call binding the contract method 0xdac9998e.
 //
-// Solidity: function contributions(uint256 , address ) view returns(uint256)
-func (_CrowdFunding *CrowdFundingCallerSession) Contributions(arg0 *big.Int, arg1 common.Address) (*big.Int, error) {
-	return _CrowdFunding.Contract.Contributions(&_CrowdFunding.CallOpts, arg0, arg1)
+// Solidity: function contributionsEth(uint256 , address ) view returns(uint256)
+func (_CrowdFunding *CrowdFundingCallerSession) ContributionsEth(arg0 *big.Int, arg1 common.Address) (*big.Int, error) {
+	return _CrowdFunding.Contract.ContributionsEth(&_CrowdFunding.CallOpts, arg0, arg1)
+}
+
+// ContributionsToken is a free data retrieval call binding the contract method 0x6385fe75.
+//
+// Solidity: function contributionsToken(uint256 , address ) view returns(uint256)
+func (_CrowdFunding *CrowdFundingCaller) ContributionsToken(opts *bind.CallOpts, arg0 *big.Int, arg1 common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _CrowdFunding.contract.Call(opts, &out, "contributionsToken", arg0, arg1)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// ContributionsToken is a free data retrieval call binding the contract method 0x6385fe75.
+//
+// Solidity: function contributionsToken(uint256 , address ) view returns(uint256)
+func (_CrowdFunding *CrowdFundingSession) ContributionsToken(arg0 *big.Int, arg1 common.Address) (*big.Int, error) {
+	return _CrowdFunding.Contract.ContributionsToken(&_CrowdFunding.CallOpts, arg0, arg1)
+}
+
+// ContributionsToken is a free data retrieval call binding the contract method 0x6385fe75.
+//
+// Solidity: function contributionsToken(uint256 , address ) view returns(uint256)
+func (_CrowdFunding *CrowdFundingCallerSession) ContributionsToken(arg0 *big.Int, arg1 common.Address) (*big.Int, error) {
+	return _CrowdFunding.Contract.ContributionsToken(&_CrowdFunding.CallOpts, arg0, arg1)
 }
 
 // GetCampaign is a free data retrieval call binding the contract method 0x5598f8cc.
 //
-// Solidity: function getCampaign(uint256 campaignId) view returns((address,string,string,uint256,uint256,uint256,bool))
+// Solidity: function getCampaign(uint256 campaignId) view returns((address,string,string,uint8,address,uint256,uint256,uint256,uint256,uint256,bool))
 func (_CrowdFunding *CrowdFundingCaller) GetCampaign(opts *bind.CallOpts, campaignId *big.Int) (Campaign, error) {
 	var out []interface{}
 	err := _CrowdFunding.contract.Call(opts, &out, "getCampaign", campaignId)
@@ -373,14 +428,14 @@ func (_CrowdFunding *CrowdFundingCaller) GetCampaign(opts *bind.CallOpts, campai
 
 // GetCampaign is a free data retrieval call binding the contract method 0x5598f8cc.
 //
-// Solidity: function getCampaign(uint256 campaignId) view returns((address,string,string,uint256,uint256,uint256,bool))
+// Solidity: function getCampaign(uint256 campaignId) view returns((address,string,string,uint8,address,uint256,uint256,uint256,uint256,uint256,bool))
 func (_CrowdFunding *CrowdFundingSession) GetCampaign(campaignId *big.Int) (Campaign, error) {
 	return _CrowdFunding.Contract.GetCampaign(&_CrowdFunding.CallOpts, campaignId)
 }
 
 // GetCampaign is a free data retrieval call binding the contract method 0x5598f8cc.
 //
-// Solidity: function getCampaign(uint256 campaignId) view returns((address,string,string,uint256,uint256,uint256,bool))
+// Solidity: function getCampaign(uint256 campaignId) view returns((address,string,string,uint8,address,uint256,uint256,uint256,uint256,uint256,bool))
 func (_CrowdFunding *CrowdFundingCallerSession) GetCampaign(campaignId *big.Int) (Campaign, error) {
 	return _CrowdFunding.Contract.GetCampaign(&_CrowdFunding.CallOpts, campaignId)
 }
@@ -418,7 +473,7 @@ func (_CrowdFunding *CrowdFundingCallerSession) GetCampaignStatus(campaignId *bi
 
 // GetCampaigns is a free data retrieval call binding the contract method 0x09051566.
 //
-// Solidity: function getCampaigns(uint256 offset, uint256 limit) view returns((address,string,string,uint256,uint256,uint256,bool)[])
+// Solidity: function getCampaigns(uint256 offset, uint256 limit) view returns((address,string,string,uint8,address,uint256,uint256,uint256,uint256,uint256,bool)[])
 func (_CrowdFunding *CrowdFundingCaller) GetCampaigns(opts *bind.CallOpts, offset *big.Int, limit *big.Int) ([]Campaign, error) {
 	var out []interface{}
 	err := _CrowdFunding.contract.Call(opts, &out, "getCampaigns", offset, limit)
@@ -435,24 +490,24 @@ func (_CrowdFunding *CrowdFundingCaller) GetCampaigns(opts *bind.CallOpts, offse
 
 // GetCampaigns is a free data retrieval call binding the contract method 0x09051566.
 //
-// Solidity: function getCampaigns(uint256 offset, uint256 limit) view returns((address,string,string,uint256,uint256,uint256,bool)[])
+// Solidity: function getCampaigns(uint256 offset, uint256 limit) view returns((address,string,string,uint8,address,uint256,uint256,uint256,uint256,uint256,bool)[])
 func (_CrowdFunding *CrowdFundingSession) GetCampaigns(offset *big.Int, limit *big.Int) ([]Campaign, error) {
 	return _CrowdFunding.Contract.GetCampaigns(&_CrowdFunding.CallOpts, offset, limit)
 }
 
 // GetCampaigns is a free data retrieval call binding the contract method 0x09051566.
 //
-// Solidity: function getCampaigns(uint256 offset, uint256 limit) view returns((address,string,string,uint256,uint256,uint256,bool)[])
+// Solidity: function getCampaigns(uint256 offset, uint256 limit) view returns((address,string,string,uint8,address,uint256,uint256,uint256,uint256,uint256,bool)[])
 func (_CrowdFunding *CrowdFundingCallerSession) GetCampaigns(offset *big.Int, limit *big.Int) ([]Campaign, error) {
 	return _CrowdFunding.Contract.GetCampaigns(&_CrowdFunding.CallOpts, offset, limit)
 }
 
-// GetContribution is a free data retrieval call binding the contract method 0xe081dbf9.
+// GetContributionEth is a free data retrieval call binding the contract method 0xa0c1e469.
 //
-// Solidity: function getContribution(uint256 campaignId, address contributor) view returns(uint256)
-func (_CrowdFunding *CrowdFundingCaller) GetContribution(opts *bind.CallOpts, campaignId *big.Int, contributor common.Address) (*big.Int, error) {
+// Solidity: function getContributionEth(uint256 campaignId, address contributor) view returns(uint256)
+func (_CrowdFunding *CrowdFundingCaller) GetContributionEth(opts *bind.CallOpts, campaignId *big.Int, contributor common.Address) (*big.Int, error) {
 	var out []interface{}
-	err := _CrowdFunding.contract.Call(opts, &out, "getContribution", campaignId, contributor)
+	err := _CrowdFunding.contract.Call(opts, &out, "getContributionEth", campaignId, contributor)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -464,18 +519,49 @@ func (_CrowdFunding *CrowdFundingCaller) GetContribution(opts *bind.CallOpts, ca
 
 }
 
-// GetContribution is a free data retrieval call binding the contract method 0xe081dbf9.
+// GetContributionEth is a free data retrieval call binding the contract method 0xa0c1e469.
 //
-// Solidity: function getContribution(uint256 campaignId, address contributor) view returns(uint256)
-func (_CrowdFunding *CrowdFundingSession) GetContribution(campaignId *big.Int, contributor common.Address) (*big.Int, error) {
-	return _CrowdFunding.Contract.GetContribution(&_CrowdFunding.CallOpts, campaignId, contributor)
+// Solidity: function getContributionEth(uint256 campaignId, address contributor) view returns(uint256)
+func (_CrowdFunding *CrowdFundingSession) GetContributionEth(campaignId *big.Int, contributor common.Address) (*big.Int, error) {
+	return _CrowdFunding.Contract.GetContributionEth(&_CrowdFunding.CallOpts, campaignId, contributor)
 }
 
-// GetContribution is a free data retrieval call binding the contract method 0xe081dbf9.
+// GetContributionEth is a free data retrieval call binding the contract method 0xa0c1e469.
 //
-// Solidity: function getContribution(uint256 campaignId, address contributor) view returns(uint256)
-func (_CrowdFunding *CrowdFundingCallerSession) GetContribution(campaignId *big.Int, contributor common.Address) (*big.Int, error) {
-	return _CrowdFunding.Contract.GetContribution(&_CrowdFunding.CallOpts, campaignId, contributor)
+// Solidity: function getContributionEth(uint256 campaignId, address contributor) view returns(uint256)
+func (_CrowdFunding *CrowdFundingCallerSession) GetContributionEth(campaignId *big.Int, contributor common.Address) (*big.Int, error) {
+	return _CrowdFunding.Contract.GetContributionEth(&_CrowdFunding.CallOpts, campaignId, contributor)
+}
+
+// GetContributionToken is a free data retrieval call binding the contract method 0x79873873.
+//
+// Solidity: function getContributionToken(uint256 campaignId, address contributor) view returns(uint256)
+func (_CrowdFunding *CrowdFundingCaller) GetContributionToken(opts *bind.CallOpts, campaignId *big.Int, contributor common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _CrowdFunding.contract.Call(opts, &out, "getContributionToken", campaignId, contributor)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetContributionToken is a free data retrieval call binding the contract method 0x79873873.
+//
+// Solidity: function getContributionToken(uint256 campaignId, address contributor) view returns(uint256)
+func (_CrowdFunding *CrowdFundingSession) GetContributionToken(campaignId *big.Int, contributor common.Address) (*big.Int, error) {
+	return _CrowdFunding.Contract.GetContributionToken(&_CrowdFunding.CallOpts, campaignId, contributor)
+}
+
+// GetContributionToken is a free data retrieval call binding the contract method 0x79873873.
+//
+// Solidity: function getContributionToken(uint256 campaignId, address contributor) view returns(uint256)
+func (_CrowdFunding *CrowdFundingCallerSession) GetContributionToken(campaignId *big.Int, contributor common.Address) (*big.Int, error) {
+	return _CrowdFunding.Contract.GetContributionToken(&_CrowdFunding.CallOpts, campaignId, contributor)
 }
 
 // CloseCampaign is a paid mutator transaction binding the contract method 0xb0e1c1e1.
@@ -499,46 +585,67 @@ func (_CrowdFunding *CrowdFundingTransactorSession) CloseCampaign(campaignId *bi
 	return _CrowdFunding.Contract.CloseCampaign(&_CrowdFunding.TransactOpts, campaignId)
 }
 
-// Contribute is a paid mutator transaction binding the contract method 0xc1cbbca7.
+// ContributeEth is a paid mutator transaction binding the contract method 0x352d722f.
 //
-// Solidity: function contribute(uint256 campaignId) payable returns()
-func (_CrowdFunding *CrowdFundingTransactor) Contribute(opts *bind.TransactOpts, campaignId *big.Int) (*types.Transaction, error) {
-	return _CrowdFunding.contract.Transact(opts, "contribute", campaignId)
+// Solidity: function contributeEth(uint256 campaignId) payable returns()
+func (_CrowdFunding *CrowdFundingTransactor) ContributeEth(opts *bind.TransactOpts, campaignId *big.Int) (*types.Transaction, error) {
+	return _CrowdFunding.contract.Transact(opts, "contributeEth", campaignId)
 }
 
-// Contribute is a paid mutator transaction binding the contract method 0xc1cbbca7.
+// ContributeEth is a paid mutator transaction binding the contract method 0x352d722f.
 //
-// Solidity: function contribute(uint256 campaignId) payable returns()
-func (_CrowdFunding *CrowdFundingSession) Contribute(campaignId *big.Int) (*types.Transaction, error) {
-	return _CrowdFunding.Contract.Contribute(&_CrowdFunding.TransactOpts, campaignId)
+// Solidity: function contributeEth(uint256 campaignId) payable returns()
+func (_CrowdFunding *CrowdFundingSession) ContributeEth(campaignId *big.Int) (*types.Transaction, error) {
+	return _CrowdFunding.Contract.ContributeEth(&_CrowdFunding.TransactOpts, campaignId)
 }
 
-// Contribute is a paid mutator transaction binding the contract method 0xc1cbbca7.
+// ContributeEth is a paid mutator transaction binding the contract method 0x352d722f.
 //
-// Solidity: function contribute(uint256 campaignId) payable returns()
-func (_CrowdFunding *CrowdFundingTransactorSession) Contribute(campaignId *big.Int) (*types.Transaction, error) {
-	return _CrowdFunding.Contract.Contribute(&_CrowdFunding.TransactOpts, campaignId)
+// Solidity: function contributeEth(uint256 campaignId) payable returns()
+func (_CrowdFunding *CrowdFundingTransactorSession) ContributeEth(campaignId *big.Int) (*types.Transaction, error) {
+	return _CrowdFunding.Contract.ContributeEth(&_CrowdFunding.TransactOpts, campaignId)
 }
 
-// CreateCampaign is a paid mutator transaction binding the contract method 0xa318f269.
+// ContributeToken is a paid mutator transaction binding the contract method 0x3d925092.
 //
-// Solidity: function createCampaign(string title, string description, uint256 goal, uint256 durationInSeconds) returns(uint256 campaignId)
-func (_CrowdFunding *CrowdFundingTransactor) CreateCampaign(opts *bind.TransactOpts, title string, description string, goal *big.Int, durationInSeconds *big.Int) (*types.Transaction, error) {
-	return _CrowdFunding.contract.Transact(opts, "createCampaign", title, description, goal, durationInSeconds)
+// Solidity: function contributeToken(uint256 campaignId, uint256 amount) returns()
+func (_CrowdFunding *CrowdFundingTransactor) ContributeToken(opts *bind.TransactOpts, campaignId *big.Int, amount *big.Int) (*types.Transaction, error) {
+	return _CrowdFunding.contract.Transact(opts, "contributeToken", campaignId, amount)
 }
 
-// CreateCampaign is a paid mutator transaction binding the contract method 0xa318f269.
+// ContributeToken is a paid mutator transaction binding the contract method 0x3d925092.
 //
-// Solidity: function createCampaign(string title, string description, uint256 goal, uint256 durationInSeconds) returns(uint256 campaignId)
-func (_CrowdFunding *CrowdFundingSession) CreateCampaign(title string, description string, goal *big.Int, durationInSeconds *big.Int) (*types.Transaction, error) {
-	return _CrowdFunding.Contract.CreateCampaign(&_CrowdFunding.TransactOpts, title, description, goal, durationInSeconds)
+// Solidity: function contributeToken(uint256 campaignId, uint256 amount) returns()
+func (_CrowdFunding *CrowdFundingSession) ContributeToken(campaignId *big.Int, amount *big.Int) (*types.Transaction, error) {
+	return _CrowdFunding.Contract.ContributeToken(&_CrowdFunding.TransactOpts, campaignId, amount)
 }
 
-// CreateCampaign is a paid mutator transaction binding the contract method 0xa318f269.
+// ContributeToken is a paid mutator transaction binding the contract method 0x3d925092.
 //
-// Solidity: function createCampaign(string title, string description, uint256 goal, uint256 durationInSeconds) returns(uint256 campaignId)
-func (_CrowdFunding *CrowdFundingTransactorSession) CreateCampaign(title string, description string, goal *big.Int, durationInSeconds *big.Int) (*types.Transaction, error) {
-	return _CrowdFunding.Contract.CreateCampaign(&_CrowdFunding.TransactOpts, title, description, goal, durationInSeconds)
+// Solidity: function contributeToken(uint256 campaignId, uint256 amount) returns()
+func (_CrowdFunding *CrowdFundingTransactorSession) ContributeToken(campaignId *big.Int, amount *big.Int) (*types.Transaction, error) {
+	return _CrowdFunding.Contract.ContributeToken(&_CrowdFunding.TransactOpts, campaignId, amount)
+}
+
+// CreateCampaign is a paid mutator transaction binding the contract method 0x0a55df74.
+//
+// Solidity: function createCampaign(string title, string description, uint8 currencyMode, address token, uint256 goalEth, uint256 goalToken, uint256 durationInSeconds) returns(uint256 campaignId)
+func (_CrowdFunding *CrowdFundingTransactor) CreateCampaign(opts *bind.TransactOpts, title string, description string, currencyMode uint8, token common.Address, goalEth *big.Int, goalToken *big.Int, durationInSeconds *big.Int) (*types.Transaction, error) {
+	return _CrowdFunding.contract.Transact(opts, "createCampaign", title, description, currencyMode, token, goalEth, goalToken, durationInSeconds)
+}
+
+// CreateCampaign is a paid mutator transaction binding the contract method 0x0a55df74.
+//
+// Solidity: function createCampaign(string title, string description, uint8 currencyMode, address token, uint256 goalEth, uint256 goalToken, uint256 durationInSeconds) returns(uint256 campaignId)
+func (_CrowdFunding *CrowdFundingSession) CreateCampaign(title string, description string, currencyMode uint8, token common.Address, goalEth *big.Int, goalToken *big.Int, durationInSeconds *big.Int) (*types.Transaction, error) {
+	return _CrowdFunding.Contract.CreateCampaign(&_CrowdFunding.TransactOpts, title, description, currencyMode, token, goalEth, goalToken, durationInSeconds)
+}
+
+// CreateCampaign is a paid mutator transaction binding the contract method 0x0a55df74.
+//
+// Solidity: function createCampaign(string title, string description, uint8 currencyMode, address token, uint256 goalEth, uint256 goalToken, uint256 durationInSeconds) returns(uint256 campaignId)
+func (_CrowdFunding *CrowdFundingTransactorSession) CreateCampaign(title string, description string, currencyMode uint8, token common.Address, goalEth *big.Int, goalToken *big.Int, durationInSeconds *big.Int) (*types.Transaction, error) {
+	return _CrowdFunding.Contract.CreateCampaign(&_CrowdFunding.TransactOpts, title, description, currencyMode, token, goalEth, goalToken, durationInSeconds)
 }
 
 // Refund is a paid mutator transaction binding the contract method 0x278ecde1.
@@ -805,16 +912,19 @@ func (it *CrowdFundingCampaignCreatedIterator) Close() error {
 
 // CrowdFundingCampaignCreated represents a CampaignCreated event raised by the CrowdFunding contract.
 type CrowdFundingCampaignCreated struct {
-	CampaignId *big.Int
-	Owner      common.Address
-	Goal       *big.Int
-	Deadline   *big.Int
-	Raw        types.Log // Blockchain specific contextual infos
+	CampaignId   *big.Int
+	Owner        common.Address
+	CurrencyMode uint8
+	Token        common.Address
+	GoalEth      *big.Int
+	GoalToken    *big.Int
+	Deadline     *big.Int
+	Raw          types.Log // Blockchain specific contextual infos
 }
 
-// FilterCampaignCreated is a free log retrieval operation binding the contract event 0x91b289a829e71d811b8c69e4a24ba2d40d115d8a236e9a724cb3bb2d43cf7223.
+// FilterCampaignCreated is a free log retrieval operation binding the contract event 0xfe08ee610ce61d7fa2fac7befaa25cae823cb93466a011bb8beaac23973bca37.
 //
-// Solidity: event CampaignCreated(uint256 indexed campaignId, address indexed owner, uint256 goal, uint256 deadline)
+// Solidity: event CampaignCreated(uint256 indexed campaignId, address indexed owner, uint8 currencyMode, address token, uint256 goalEth, uint256 goalToken, uint256 deadline)
 func (_CrowdFunding *CrowdFundingFilterer) FilterCampaignCreated(opts *bind.FilterOpts, campaignId []*big.Int, owner []common.Address) (*CrowdFundingCampaignCreatedIterator, error) {
 
 	var campaignIdRule []interface{}
@@ -833,9 +943,9 @@ func (_CrowdFunding *CrowdFundingFilterer) FilterCampaignCreated(opts *bind.Filt
 	return &CrowdFundingCampaignCreatedIterator{contract: _CrowdFunding.contract, event: "CampaignCreated", logs: logs, sub: sub}, nil
 }
 
-// WatchCampaignCreated is a free log subscription operation binding the contract event 0x91b289a829e71d811b8c69e4a24ba2d40d115d8a236e9a724cb3bb2d43cf7223.
+// WatchCampaignCreated is a free log subscription operation binding the contract event 0xfe08ee610ce61d7fa2fac7befaa25cae823cb93466a011bb8beaac23973bca37.
 //
-// Solidity: event CampaignCreated(uint256 indexed campaignId, address indexed owner, uint256 goal, uint256 deadline)
+// Solidity: event CampaignCreated(uint256 indexed campaignId, address indexed owner, uint8 currencyMode, address token, uint256 goalEth, uint256 goalToken, uint256 deadline)
 func (_CrowdFunding *CrowdFundingFilterer) WatchCampaignCreated(opts *bind.WatchOpts, sink chan<- *CrowdFundingCampaignCreated, campaignId []*big.Int, owner []common.Address) (event.Subscription, error) {
 
 	var campaignIdRule []interface{}
@@ -879,9 +989,9 @@ func (_CrowdFunding *CrowdFundingFilterer) WatchCampaignCreated(opts *bind.Watch
 	}), nil
 }
 
-// ParseCampaignCreated is a log parse operation binding the contract event 0x91b289a829e71d811b8c69e4a24ba2d40d115d8a236e9a724cb3bb2d43cf7223.
+// ParseCampaignCreated is a log parse operation binding the contract event 0xfe08ee610ce61d7fa2fac7befaa25cae823cb93466a011bb8beaac23973bca37.
 //
-// Solidity: event CampaignCreated(uint256 indexed campaignId, address indexed owner, uint256 goal, uint256 deadline)
+// Solidity: event CampaignCreated(uint256 indexed campaignId, address indexed owner, uint8 currencyMode, address token, uint256 goalEth, uint256 goalToken, uint256 deadline)
 func (_CrowdFunding *CrowdFundingFilterer) ParseCampaignCreated(log types.Log) (*CrowdFundingCampaignCreated, error) {
 	event := new(CrowdFundingCampaignCreated)
 	if err := _CrowdFunding.contract.UnpackLog(event, "CampaignCreated", log); err != nil {
@@ -962,13 +1072,14 @@ func (it *CrowdFundingContributionMadeIterator) Close() error {
 type CrowdFundingContributionMade struct {
 	CampaignId  *big.Int
 	Contributor common.Address
+	Token       common.Address
 	Amount      *big.Int
 	Raw         types.Log // Blockchain specific contextual infos
 }
 
-// FilterContributionMade is a free log retrieval operation binding the contract event 0x0a4a91237423e0a1766a761c7cb029311d8b95d6b1b81db1b949a70c98b4e08e.
+// FilterContributionMade is a free log retrieval operation binding the contract event 0xf6ab15f3ae6cc7f857f32b5a5e1a789bf16059eb626d7aefab39f2ff0447e0df.
 //
-// Solidity: event ContributionMade(uint256 indexed campaignId, address indexed contributor, uint256 amount)
+// Solidity: event ContributionMade(uint256 indexed campaignId, address indexed contributor, address token, uint256 amount)
 func (_CrowdFunding *CrowdFundingFilterer) FilterContributionMade(opts *bind.FilterOpts, campaignId []*big.Int, contributor []common.Address) (*CrowdFundingContributionMadeIterator, error) {
 
 	var campaignIdRule []interface{}
@@ -987,9 +1098,9 @@ func (_CrowdFunding *CrowdFundingFilterer) FilterContributionMade(opts *bind.Fil
 	return &CrowdFundingContributionMadeIterator{contract: _CrowdFunding.contract, event: "ContributionMade", logs: logs, sub: sub}, nil
 }
 
-// WatchContributionMade is a free log subscription operation binding the contract event 0x0a4a91237423e0a1766a761c7cb029311d8b95d6b1b81db1b949a70c98b4e08e.
+// WatchContributionMade is a free log subscription operation binding the contract event 0xf6ab15f3ae6cc7f857f32b5a5e1a789bf16059eb626d7aefab39f2ff0447e0df.
 //
-// Solidity: event ContributionMade(uint256 indexed campaignId, address indexed contributor, uint256 amount)
+// Solidity: event ContributionMade(uint256 indexed campaignId, address indexed contributor, address token, uint256 amount)
 func (_CrowdFunding *CrowdFundingFilterer) WatchContributionMade(opts *bind.WatchOpts, sink chan<- *CrowdFundingContributionMade, campaignId []*big.Int, contributor []common.Address) (event.Subscription, error) {
 
 	var campaignIdRule []interface{}
@@ -1033,9 +1144,9 @@ func (_CrowdFunding *CrowdFundingFilterer) WatchContributionMade(opts *bind.Watc
 	}), nil
 }
 
-// ParseContributionMade is a log parse operation binding the contract event 0x0a4a91237423e0a1766a761c7cb029311d8b95d6b1b81db1b949a70c98b4e08e.
+// ParseContributionMade is a log parse operation binding the contract event 0xf6ab15f3ae6cc7f857f32b5a5e1a789bf16059eb626d7aefab39f2ff0447e0df.
 //
-// Solidity: event ContributionMade(uint256 indexed campaignId, address indexed contributor, uint256 amount)
+// Solidity: event ContributionMade(uint256 indexed campaignId, address indexed contributor, address token, uint256 amount)
 func (_CrowdFunding *CrowdFundingFilterer) ParseContributionMade(log types.Log) (*CrowdFundingContributionMade, error) {
 	event := new(CrowdFundingContributionMade)
 	if err := _CrowdFunding.contract.UnpackLog(event, "ContributionMade", log); err != nil {
@@ -1116,13 +1227,14 @@ func (it *CrowdFundingContributionRefundedIterator) Close() error {
 type CrowdFundingContributionRefunded struct {
 	CampaignId  *big.Int
 	Contributor common.Address
-	Amount      *big.Int
+	EthAmount   *big.Int
+	TokenAmount *big.Int
 	Raw         types.Log // Blockchain specific contextual infos
 }
 
-// FilterContributionRefunded is a free log retrieval operation binding the contract event 0xfc8dc45aafeb84bf841ffa6c1b48653bea5b43662ab6685b9683e2e5b72fc74f.
+// FilterContributionRefunded is a free log retrieval operation binding the contract event 0x94b7d16871fd252f485b98072f622be6a999f952a4cc258fcb4f47942916bed5.
 //
-// Solidity: event ContributionRefunded(uint256 indexed campaignId, address indexed contributor, uint256 amount)
+// Solidity: event ContributionRefunded(uint256 indexed campaignId, address indexed contributor, uint256 ethAmount, uint256 tokenAmount)
 func (_CrowdFunding *CrowdFundingFilterer) FilterContributionRefunded(opts *bind.FilterOpts, campaignId []*big.Int, contributor []common.Address) (*CrowdFundingContributionRefundedIterator, error) {
 
 	var campaignIdRule []interface{}
@@ -1141,9 +1253,9 @@ func (_CrowdFunding *CrowdFundingFilterer) FilterContributionRefunded(opts *bind
 	return &CrowdFundingContributionRefundedIterator{contract: _CrowdFunding.contract, event: "ContributionRefunded", logs: logs, sub: sub}, nil
 }
 
-// WatchContributionRefunded is a free log subscription operation binding the contract event 0xfc8dc45aafeb84bf841ffa6c1b48653bea5b43662ab6685b9683e2e5b72fc74f.
+// WatchContributionRefunded is a free log subscription operation binding the contract event 0x94b7d16871fd252f485b98072f622be6a999f952a4cc258fcb4f47942916bed5.
 //
-// Solidity: event ContributionRefunded(uint256 indexed campaignId, address indexed contributor, uint256 amount)
+// Solidity: event ContributionRefunded(uint256 indexed campaignId, address indexed contributor, uint256 ethAmount, uint256 tokenAmount)
 func (_CrowdFunding *CrowdFundingFilterer) WatchContributionRefunded(opts *bind.WatchOpts, sink chan<- *CrowdFundingContributionRefunded, campaignId []*big.Int, contributor []common.Address) (event.Subscription, error) {
 
 	var campaignIdRule []interface{}
@@ -1187,9 +1299,9 @@ func (_CrowdFunding *CrowdFundingFilterer) WatchContributionRefunded(opts *bind.
 	}), nil
 }
 
-// ParseContributionRefunded is a log parse operation binding the contract event 0xfc8dc45aafeb84bf841ffa6c1b48653bea5b43662ab6685b9683e2e5b72fc74f.
+// ParseContributionRefunded is a log parse operation binding the contract event 0x94b7d16871fd252f485b98072f622be6a999f952a4cc258fcb4f47942916bed5.
 //
-// Solidity: event ContributionRefunded(uint256 indexed campaignId, address indexed contributor, uint256 amount)
+// Solidity: event ContributionRefunded(uint256 indexed campaignId, address indexed contributor, uint256 ethAmount, uint256 tokenAmount)
 func (_CrowdFunding *CrowdFundingFilterer) ParseContributionRefunded(log types.Log) (*CrowdFundingContributionRefunded, error) {
 	event := new(CrowdFundingContributionRefunded)
 	if err := _CrowdFunding.contract.UnpackLog(event, "ContributionRefunded", log); err != nil {
@@ -1268,15 +1380,16 @@ func (it *CrowdFundingFundsWithdrawnIterator) Close() error {
 
 // CrowdFundingFundsWithdrawn represents a FundsWithdrawn event raised by the CrowdFunding contract.
 type CrowdFundingFundsWithdrawn struct {
-	CampaignId *big.Int
-	Owner      common.Address
-	Amount     *big.Int
-	Raw        types.Log // Blockchain specific contextual infos
+	CampaignId  *big.Int
+	Owner       common.Address
+	EthAmount   *big.Int
+	TokenAmount *big.Int
+	Raw         types.Log // Blockchain specific contextual infos
 }
 
-// FilterFundsWithdrawn is a free log retrieval operation binding the contract event 0xf440aec6b52895984d061d622e6edeba6210f7c3e059be920663140c084560d7.
+// FilterFundsWithdrawn is a free log retrieval operation binding the contract event 0x3dbb1a26f29aef1264c12ca1285deb60cca5666d8b17100c7ea1602c0a4014f6.
 //
-// Solidity: event FundsWithdrawn(uint256 indexed campaignId, address indexed owner, uint256 amount)
+// Solidity: event FundsWithdrawn(uint256 indexed campaignId, address indexed owner, uint256 ethAmount, uint256 tokenAmount)
 func (_CrowdFunding *CrowdFundingFilterer) FilterFundsWithdrawn(opts *bind.FilterOpts, campaignId []*big.Int, owner []common.Address) (*CrowdFundingFundsWithdrawnIterator, error) {
 
 	var campaignIdRule []interface{}
@@ -1295,9 +1408,9 @@ func (_CrowdFunding *CrowdFundingFilterer) FilterFundsWithdrawn(opts *bind.Filte
 	return &CrowdFundingFundsWithdrawnIterator{contract: _CrowdFunding.contract, event: "FundsWithdrawn", logs: logs, sub: sub}, nil
 }
 
-// WatchFundsWithdrawn is a free log subscription operation binding the contract event 0xf440aec6b52895984d061d622e6edeba6210f7c3e059be920663140c084560d7.
+// WatchFundsWithdrawn is a free log subscription operation binding the contract event 0x3dbb1a26f29aef1264c12ca1285deb60cca5666d8b17100c7ea1602c0a4014f6.
 //
-// Solidity: event FundsWithdrawn(uint256 indexed campaignId, address indexed owner, uint256 amount)
+// Solidity: event FundsWithdrawn(uint256 indexed campaignId, address indexed owner, uint256 ethAmount, uint256 tokenAmount)
 func (_CrowdFunding *CrowdFundingFilterer) WatchFundsWithdrawn(opts *bind.WatchOpts, sink chan<- *CrowdFundingFundsWithdrawn, campaignId []*big.Int, owner []common.Address) (event.Subscription, error) {
 
 	var campaignIdRule []interface{}
@@ -1341,9 +1454,9 @@ func (_CrowdFunding *CrowdFundingFilterer) WatchFundsWithdrawn(opts *bind.WatchO
 	}), nil
 }
 
-// ParseFundsWithdrawn is a log parse operation binding the contract event 0xf440aec6b52895984d061d622e6edeba6210f7c3e059be920663140c084560d7.
+// ParseFundsWithdrawn is a log parse operation binding the contract event 0x3dbb1a26f29aef1264c12ca1285deb60cca5666d8b17100c7ea1602c0a4014f6.
 //
-// Solidity: event FundsWithdrawn(uint256 indexed campaignId, address indexed owner, uint256 amount)
+// Solidity: event FundsWithdrawn(uint256 indexed campaignId, address indexed owner, uint256 ethAmount, uint256 tokenAmount)
 func (_CrowdFunding *CrowdFundingFilterer) ParseFundsWithdrawn(log types.Log) (*CrowdFundingFundsWithdrawn, error) {
 	event := new(CrowdFundingFundsWithdrawn)
 	if err := _CrowdFunding.contract.UnpackLog(event, "FundsWithdrawn", log); err != nil {

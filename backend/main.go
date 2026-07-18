@@ -103,15 +103,21 @@ func main() {
 		log.Fatalf("failed to connect to comment service: %v", err)
 	}
 
+	tokenService, err := services.NewTokenService(os.Getenv("SUPPORTED_TOKENS"))
+	if err != nil {
+		log.Fatalf("failed to parse SUPPORTED_TOKENS: %v", err)
+	}
+
 	deps := &handlers.Dependencies{
 		AuthService:           services.NewAuthService([]byte(jwtSecret)),
 		Auth0Service:          auth0Service,
 		ProfileService:        services.NewProfileService(gormDB),
 		AssetService:          assetService,
-		CampaignService:       services.NewCampaignService(gormDB, crowdFunding, idMaskService, assetService),
+		CampaignService:       services.NewCampaignService(gormDB, crowdFunding, idMaskService, assetService, tokenService),
 		PublicCampaignService: services.NewPublicCampaignService(gormDB, crowdFunding, idMaskService),
 		WalletService:         services.NewWalletService(gormDB),
 		CommentService:        commentService,
+		TokenService:          tokenService,
 	}
 
 	services.StartTransactionIndexer(gormDB, crowdFunding, client)

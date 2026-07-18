@@ -1,4 +1,4 @@
-import { formatEth } from '../utils/format'
+import { formatEth, formatTokenAmount } from '../utils/format'
 
 function CoverPlaceholder() {
   return (
@@ -44,6 +44,30 @@ function StatusPill({ status }) {
   )
 }
 
+function raisedSummary(campaign) {
+  if (campaign.currencyMode === 'token') {
+    return `${formatTokenAmount(campaign.amountRaisedToken, campaign.tokenDecimals, campaign.tokenSymbol)} raised`
+  }
+  if (campaign.currencyMode === 'both') {
+    return `${formatEth(campaign.amountRaisedEth)} + ${formatTokenAmount(
+      campaign.amountRaisedToken,
+      campaign.tokenDecimals,
+      campaign.tokenSymbol,
+    )} raised`
+  }
+  return `${formatEth(campaign.amountRaisedEth)} raised`
+}
+
+function goalSummary(campaign) {
+  if (campaign.currencyMode === 'token') {
+    return `Goal: ${campaign.goalToken || '0'} ${campaign.tokenSymbol || 'token'}`
+  }
+  if (campaign.currencyMode === 'both') {
+    return `Goal: ${campaign.targetEth || '0'} ETH + ${campaign.goalToken || '0'} ${campaign.tokenSymbol || 'token'}`
+  }
+  return `Goal: ${campaign.targetEth || '0'} ETH`
+}
+
 function CampaignGrid({ campaigns, onSelect, showOwner = true }) {
   if (campaigns.length === 0) {
     return (
@@ -72,14 +96,14 @@ function CampaignGrid({ campaigns, onSelect, showOwner = true }) {
             <h3 className="truncate font-medium text-slate-900">{campaign.title}</h3>
             {showOwner && <p className="mt-1 text-sm text-slate-500">by Md Nazmul Hasan</p>}
 
-            {campaign.amountRaised !== undefined ? (
+            {campaign.amountRaisedEth !== undefined ? (
               <div className="mt-1 flex items-center justify-between gap-2">
-                <span className="text-sm text-slate-500">{formatEth(campaign.amountRaised)} raised</span>
+                <span className="text-sm text-slate-500">{raisedSummary(campaign)}</span>
                 {campaign.isArchived && <StatusPill status="archived" />}
               </div>
             ) : (
               <div className="mt-1 flex items-center justify-between gap-2">
-                <span className="text-sm text-slate-500">Goal: {campaign.targetEth} ETH</span>
+                <span className="text-sm text-slate-500">{goalSummary(campaign)}</span>
                 {campaign.status && <StatusPill status={campaign.status} />}
               </div>
             )}

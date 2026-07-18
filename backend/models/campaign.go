@@ -15,6 +15,16 @@ const (
 	CampaignStatusArchived  = "archived"
 )
 
+const (
+	CurrencyModeEth   = "eth"
+	CurrencyModeToken = "token"
+	CurrencyModeBoth  = "both"
+)
+
+func IsValidCurrencyMode(mode string) bool {
+	return mode == CurrencyModeEth || mode == CurrencyModeToken || mode == CurrencyModeBoth
+}
+
 var CampaignCategories = []string{
 	"Medical & Health",
 	"Education",
@@ -40,7 +50,12 @@ type Campaign struct {
 	Category          string     `gorm:"not null;default:Other" json:"category"`
 	Title             string     `gorm:"not null" json:"title"`
 	Description       string     `gorm:"type:text" json:"description"`
-	TargetEth         string     `gorm:"not null" json:"targetEth"`
+	CurrencyMode      string     `gorm:"not null;default:eth" json:"currencyMode"`
+	TargetEth         string     `json:"targetEth"`
+	TokenAddress      *string    `json:"tokenAddress"`
+	TokenSymbol       *string    `json:"tokenSymbol"`
+	TokenDecimals     *uint8     `json:"tokenDecimals"`
+	GoalToken         *string    `json:"goalToken"`
 	DurationDays      uint32     `gorm:"not null;default:30" json:"durationDays"`
 	FundraisingFor    string     `gorm:"not null" json:"fundraisingFor"`
 	Status            string     `gorm:"not null;default:draft" json:"status"`
@@ -53,16 +68,37 @@ type Campaign struct {
 	UpdatedAt         time.Time  `json:"updatedAt"`
 }
 
-func CreateCampaign(db *gorm.DB, ownerSub, country, category, title, description, targetEth string, durationDays uint32, fundraisingFor string) (*Campaign, error) {
+type CreateCampaignParams struct {
+	OwnerSub       string
+	Country        string
+	Category       string
+	Title          string
+	Description    string
+	CurrencyMode   string
+	TargetEth      string
+	TokenAddress   *string
+	TokenSymbol    *string
+	TokenDecimals  *uint8
+	GoalToken      *string
+	DurationDays   uint32
+	FundraisingFor string
+}
+
+func CreateCampaign(db *gorm.DB, params CreateCampaignParams) (*Campaign, error) {
 	campaign := Campaign{
-		OwnerSub:       ownerSub,
-		Country:        country,
-		Category:       category,
-		Title:          title,
-		Description:    description,
-		TargetEth:      targetEth,
-		DurationDays:   durationDays,
-		FundraisingFor: fundraisingFor,
+		OwnerSub:       params.OwnerSub,
+		Country:        params.Country,
+		Category:       params.Category,
+		Title:          params.Title,
+		Description:    params.Description,
+		CurrencyMode:   params.CurrencyMode,
+		TargetEth:      params.TargetEth,
+		TokenAddress:   params.TokenAddress,
+		TokenSymbol:    params.TokenSymbol,
+		TokenDecimals:  params.TokenDecimals,
+		GoalToken:      params.GoalToken,
+		DurationDays:   params.DurationDays,
+		FundraisingFor: params.FundraisingFor,
 		Status:         CampaignStatusDraft,
 	}
 

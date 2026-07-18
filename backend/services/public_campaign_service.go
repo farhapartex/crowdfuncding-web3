@@ -26,9 +26,15 @@ type CampaignResponse struct {
 	Owner             string `json:"owner"`
 	Title             string `json:"title"`
 	Description       string `json:"description"`
-	Goal              string `json:"goal"`
+	CurrencyMode      string `json:"currencyMode"`
+	TokenAddress      string `json:"tokenAddress,omitempty"`
+	TokenSymbol       string `json:"tokenSymbol,omitempty"`
+	TokenDecimals     uint8  `json:"tokenDecimals,omitempty"`
+	GoalEth           string `json:"goalEth"`
+	GoalToken         string `json:"goalToken"`
 	Deadline          string `json:"deadline"`
-	AmountRaised      string `json:"amountRaised"`
+	AmountRaisedEth   string `json:"amountRaisedEth"`
+	AmountRaisedToken string `json:"amountRaisedToken"`
 	Withdrawn         bool   `json:"withdrawn"`
 	Status            string `json:"status"`
 	Country           string `json:"country"`
@@ -42,12 +48,22 @@ func toCampaignResponse(maskedID string, onChainID uint64, campaign contract.Cam
 	description := campaign.Description
 	country := ""
 	category := ""
+	currencyMode := models.CurrencyModeEth
+	tokenSymbol := ""
+	var tokenDecimals uint8
 	isArchived := false
 	archiveNote := ""
 	if dbCampaign != nil {
 		description = dbCampaign.Description
 		country = dbCampaign.Country
 		category = dbCampaign.Category
+		currencyMode = dbCampaign.CurrencyMode
+		if dbCampaign.TokenSymbol != nil {
+			tokenSymbol = *dbCampaign.TokenSymbol
+		}
+		if dbCampaign.TokenDecimals != nil {
+			tokenDecimals = *dbCampaign.TokenDecimals
+		}
 		isArchived = dbCampaign.Status == models.CampaignStatusArchived
 		if dbCampaign.ArchiveNote != nil {
 			archiveNote = *dbCampaign.ArchiveNote
@@ -60,9 +76,15 @@ func toCampaignResponse(maskedID string, onChainID uint64, campaign contract.Cam
 		Owner:             campaign.Owner.Hex(),
 		Title:             campaign.Title,
 		Description:       description,
-		Goal:              campaign.Goal.String(),
+		CurrencyMode:      currencyMode,
+		TokenAddress:      campaign.Token.Hex(),
+		TokenSymbol:       tokenSymbol,
+		TokenDecimals:     tokenDecimals,
+		GoalEth:           campaign.GoalEth.String(),
+		GoalToken:         campaign.GoalToken.String(),
 		Deadline:          campaign.Deadline.String(),
-		AmountRaised:      campaign.AmountRaised.String(),
+		AmountRaisedEth:   campaign.AmountRaisedEth.String(),
+		AmountRaisedToken: campaign.AmountRaisedToken.String(),
 		Withdrawn:         campaign.Withdrawn,
 		Status:            campaignStatus(campaign),
 		Country:           country,
@@ -158,9 +180,10 @@ func (s *PublicCampaignService) GetPublished(maskedID string) (*CampaignResponse
 }
 
 type ContributorDTO struct {
-	Address     string `json:"address"`
-	DisplayName string `json:"displayName"`
-	Amount      string `json:"amount"`
+	Address      string  `json:"address"`
+	DisplayName  string  `json:"displayName"`
+	Amount       string  `json:"amount"`
+	TokenAddress *string `json:"tokenAddress,omitempty"`
 }
 
 func (s *PublicCampaignService) GetContributors(maskedID string) ([]ContributorDTO, error) {
@@ -190,9 +213,10 @@ func (s *PublicCampaignService) GetContributors(maskedID string) ([]ContributorD
 		}
 
 		response[i] = ContributorDTO{
-			Address:     summary.Contributor,
-			DisplayName: displayName,
-			Amount:      summary.TotalAmount,
+			Address:      summary.Contributor,
+			DisplayName:  displayName,
+			Amount:       summary.TotalAmount,
+			TokenAddress: summary.TokenAddress,
 		}
 	}
 

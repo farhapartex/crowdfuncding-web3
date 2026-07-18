@@ -1,4 +1,4 @@
-import { formatEther } from 'ethers'
+import { formatEther, formatUnits } from 'ethers'
 
 export function shortenAddress(address) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -6,6 +6,13 @@ export function shortenAddress(address) {
 
 export function formatEth(amountInWei) {
   return `${formatEther(amountInWei)} ETH`
+}
+
+export function formatTokenAmount(amountInSmallestUnits, decimals, symbol) {
+  const formatted = Number(formatUnits(amountInSmallestUnits || '0', decimals ?? 18)).toLocaleString(undefined, {
+    maximumFractionDigits: 4,
+  })
+  return symbol ? `${formatted} ${symbol}` : formatted
 }
 
 export function formatDate(unixTimestampSeconds) {

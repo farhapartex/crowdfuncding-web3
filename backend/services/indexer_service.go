@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"gorm.io/gorm"
 
@@ -16,6 +17,12 @@ import (
 )
 
 const transactionPollInterval = 5 * time.Second
+
+// Withdraw/refund events carry two amounts (ETH and token) in one log entry.
+// When both are non-zero we need two ledger rows sharing one tx hash, so the
+// token-currency row's log index is offset into a range that can never
+// collide with a real log index within the same transaction.
+const tokenLogIndexOffset = 1_000_000
 
 func StartTransactionIndexer(db *gorm.DB, crowdFunding *contract.CrowdFunding, client *ethclient.Client) {
 	go func() {
@@ -91,6 +98,14 @@ func pollTransactions(db *gorm.DB, crowdFunding *contract.CrowdFunding, client *
 	return models.SetLastProcessedBlock(db, latestBlock)
 }
 
+func tokenAddressOrNil(token common.Address) *string {
+	if token == (common.Address{}) {
+		return nil
+	}
+	hex := strings.ToLower(token.Hex())
+	return &hex
+}
+
 func indexContributions(ctx context.Context, db *gorm.DB, crowdFunding *contract.CrowdFunding, opts *bind.FilterOpts, timestamps *blockTimestampCache) error {
 	iterator, err := crowdFunding.FilterContributionMade(opts, nil, nil)
 	if err != nil {
@@ -110,6 +125,7 @@ func indexContributions(ctx context.Context, db *gorm.DB, crowdFunding *contract
 			Type:           models.TransactionTypeContribution,
 			Address:        strings.ToLower(event.Contributor.Hex()),
 			Amount:         event.Amount.String(),
+			TokenAddress:   tokenAddressOrNil(event.Token),
 			BlockNumber:    event.Raw.BlockNumber,
 			BlockTimestamp: blockTime,
 			TxHash:         event.Raw.TxHash.Hex(),
@@ -137,18 +153,49 @@ func indexWithdrawals(ctx context.Context, db *gorm.DB, crowdFunding *contract.C
 			return err
 		}
 
-		tx := &models.Transaction{
-			CampaignID:     event.CampaignId.Uint64(),
-			Type:           models.TransactionTypeWithdraw,
-			Address:        strings.ToLower(event.Owner.Hex()),
-			Amount:         event.Amount.String(),
-			BlockNumber:    event.Raw.BlockNumber,
-			BlockTimestamp: blockTime,
-			TxHash:         event.Raw.TxHash.Hex(),
-			LogIndex:       event.Raw.Index,
-		}
-		if err := models.SaveTransaction(db, tx); err != nil {
+		campaign, err := models.GetCampaignByOnChainID(db, event.CampaignId.Uint64())
+		if err != nil {
 			return err
+		}
+
+		address := strings.ToLower(event.Owner.Hex())
+
+		if event.EthAmount.Sign() > 0 {
+			tx := &models.Transaction{
+				CampaignID:     event.CampaignId.Uint64(),
+				Type:           models.TransactionTypeWithdraw,
+				Address:        address,
+				Amount:         event.EthAmount.String(),
+				BlockNumber:    event.Raw.BlockNumber,
+				BlockTimestamp: blockTime,
+				TxHash:         event.Raw.TxHash.Hex(),
+				LogIndex:       event.Raw.Index,
+			}
+			if err := models.SaveTransaction(db, tx); err != nil {
+				return err
+			}
+		}
+
+		if event.TokenAmount.Sign() > 0 {
+			var tokenAddress *string
+			if campaign != nil {
+				tokenAddress = campaign.TokenAddress
+			}
+
+			tx := &models.Transaction{
+				CampaignID:     event.CampaignId.Uint64(),
+				Type:           models.TransactionTypeWithdraw,
+				Address:        address,
+				Amount:         event.TokenAmount.String(),
+				TokenAddress:   tokenAddress,
+				BlockNumber:    event.Raw.BlockNumber,
+				BlockTimestamp: blockTime,
+				TxHash:         event.Raw.TxHash.Hex(),
+				LogIndex:       event.Raw.Index + tokenLogIndexOffset,
+			}
+			if err := models.SaveTransaction(db, tx); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -169,18 +216,49 @@ func indexRefunds(ctx context.Context, db *gorm.DB, crowdFunding *contract.Crowd
 			return err
 		}
 
-		tx := &models.Transaction{
-			CampaignID:     event.CampaignId.Uint64(),
-			Type:           models.TransactionTypeRefund,
-			Address:        strings.ToLower(event.Contributor.Hex()),
-			Amount:         event.Amount.String(),
-			BlockNumber:    event.Raw.BlockNumber,
-			BlockTimestamp: blockTime,
-			TxHash:         event.Raw.TxHash.Hex(),
-			LogIndex:       event.Raw.Index,
-		}
-		if err := models.SaveTransaction(db, tx); err != nil {
+		campaign, err := models.GetCampaignByOnChainID(db, event.CampaignId.Uint64())
+		if err != nil {
 			return err
+		}
+
+		address := strings.ToLower(event.Contributor.Hex())
+
+		if event.EthAmount.Sign() > 0 {
+			tx := &models.Transaction{
+				CampaignID:     event.CampaignId.Uint64(),
+				Type:           models.TransactionTypeRefund,
+				Address:        address,
+				Amount:         event.EthAmount.String(),
+				BlockNumber:    event.Raw.BlockNumber,
+				BlockTimestamp: blockTime,
+				TxHash:         event.Raw.TxHash.Hex(),
+				LogIndex:       event.Raw.Index,
+			}
+			if err := models.SaveTransaction(db, tx); err != nil {
+				return err
+			}
+		}
+
+		if event.TokenAmount.Sign() > 0 {
+			var tokenAddress *string
+			if campaign != nil {
+				tokenAddress = campaign.TokenAddress
+			}
+
+			tx := &models.Transaction{
+				CampaignID:     event.CampaignId.Uint64(),
+				Type:           models.TransactionTypeRefund,
+				Address:        address,
+				Amount:         event.TokenAmount.String(),
+				TokenAddress:   tokenAddress,
+				BlockNumber:    event.Raw.BlockNumber,
+				BlockTimestamp: blockTime,
+				TxHash:         event.Raw.TxHash.Hex(),
+				LogIndex:       event.Raw.Index + tokenLogIndexOffset,
+			}
+			if err := models.SaveTransaction(db, tx); err != nil {
+				return err
+			}
 		}
 	}
 

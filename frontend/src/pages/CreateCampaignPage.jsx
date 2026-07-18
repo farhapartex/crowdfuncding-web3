@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { uploadAsset, createMyCampaign, fetchMyCampaign } from '../lib/api'
+import { uploadAsset, createMyCampaign, fetchMyCampaign, fetchSupportedTokens } from '../lib/api'
 import { formatEthDisplay } from '../utils/format'
 import { usePublishCampaign } from '../hooks/usePublishCampaign'
 import { useAccessToken } from '../hooks/useAccessToken'
@@ -37,6 +37,12 @@ const CATEGORIES = [
   'Animals & Pets',
   'Emergency Relief',
   'Other',
+]
+
+const CURRENCY_OPTIONS = [
+  { value: 'eth', label: 'ETH' },
+  { value: 'token', label: 'Token' },
+  { value: 'both', label: 'Both' },
 ]
 
 const inputClasses =
@@ -95,7 +101,19 @@ function Spinner() {
   )
 }
 
-function LivePreviewCard({ title, description, target, country, category, durationDays, fundraisingFor, coverPhotoPreview }) {
+function LivePreviewCard({
+  title,
+  description,
+  target,
+  currencyMode,
+  goalToken,
+  tokenSymbol,
+  country,
+  category,
+  durationDays,
+  fundraisingFor,
+  coverPhotoPreview,
+}) {
   return (
     <div className="sticky top-24 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       {coverPhotoPreview ? (
@@ -131,14 +149,31 @@ function LivePreviewCard({ title, description, target, country, category, durati
           {description || 'A short, compelling description of your campaign will show up here as you type.'}
         </p>
 
-        <div className="mt-1">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full w-0 rounded-full bg-indigo-600" />
-          </div>
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-sm font-semibold text-slate-900">0 ETH raised</span>
-            <span className="text-xs text-slate-400">of {formatEthDisplay(target)} ETH goal</span>
-          </div>
+        <div className="mt-1 flex flex-col gap-2">
+          {(currencyMode === 'eth' || currencyMode === 'both') && (
+            <div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full w-0 rounded-full bg-indigo-600" />
+              </div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <span className="text-sm font-semibold text-slate-900">0 ETH raised</span>
+                <span className="text-xs text-slate-400">of {formatEthDisplay(target)} ETH goal</span>
+              </div>
+            </div>
+          )}
+          {(currencyMode === 'token' || currencyMode === 'both') && (
+            <div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full w-0 rounded-full bg-indigo-600" />
+              </div>
+              <div className="mt-2 flex items-baseline justify-between">
+                <span className="text-sm font-semibold text-slate-900">0 {tokenSymbol || 'token'} raised</span>
+                <span className="text-xs text-slate-400">
+                  of {goalToken || '0'} {tokenSymbol || 'token'} goal
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500">
@@ -203,7 +238,11 @@ function CreateCampaignPage({ provider, account, onConnectWallet, showToast }) {
   const [country, setCountry] = useState(COUNTRIES[0])
   const [category, setCategory] = useState(CATEGORIES[0])
   const [title, setTitle] = useState('')
+  const [currencyMode, setCurrencyMode] = useState('eth')
   const [target, setTarget] = useState('')
+  const [supportedTokens, setSupportedTokens] = useState([])
+  const [tokenAddress, setTokenAddress] = useState('')
+  const [goalToken, setGoalToken] = useState('')
   const [durationDays, setDurationDays] = useState('30')
   const [description, setDescription] = useState('')
   const [fundraisingFor, setFundraisingFor] = useState(FUNDRAISING_FOR_OPTIONS[0])
@@ -220,6 +259,19 @@ function CreateCampaignPage({ provider, account, onConnectWallet, showToast }) {
     if (!coverPhotoPreview) return
     return () => URL.revokeObjectURL(coverPhotoPreview)
   }, [coverPhotoPreview])
+
+  useEffect(() => {
+    fetchSupportedTokens()
+      .then((tokens) => {
+        setSupportedTokens(tokens)
+        if (tokens.length > 0) {
+          setTokenAddress((current) => current || tokens[0].address)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const selectedToken = supportedTokens.find((token) => token.address === tokenAddress)
 
   async function uploadCoverFile(file) {
     if (!file || !file.type.startsWith('image/') || isUploadingImage) return
@@ -264,6 +316,16 @@ function CreateCampaignPage({ provider, account, onConnectWallet, showToast }) {
       return
     }
 
+    if ((currencyMode === 'eth' || currencyMode === 'both') && !target) {
+      setSubmitError('Please set an ETH funding target.')
+      return
+    }
+
+    if ((currencyMode === 'token' || currencyMode === 'both') && (!tokenAddress || !goalToken)) {
+      setSubmitError('Please select a token and set a token funding target.')
+      return
+    }
+
     setSubmitError(null)
     setIsSubmitting(true)
 
@@ -274,7 +336,10 @@ function CreateCampaignPage({ provider, account, onConnectWallet, showToast }) {
         category,
         title,
         description,
-        targetEth: target,
+        currencyMode,
+        targetEth: currencyMode === 'token' ? '' : target,
+        tokenAddress: currencyMode === 'eth' ? '' : tokenAddress,
+        goalToken: currencyMode === 'eth' ? '' : goalToken,
         durationDays: Number(durationDays),
         fundraisingFor,
         assetIds: [coverAsset.id],
@@ -393,27 +458,121 @@ function CreateCampaignPage({ provider, account, onConnectWallet, showToast }) {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="target" className={labelClasses}>
-                Funding target
+              <label htmlFor="description" className={labelClasses}>
+                Description
               </label>
-              <div className="relative">
-                <input
-                  id="target"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={target}
-                  onChange={(e) => setTarget(e.target.value)}
-                  placeholder="0.00"
-                  required
-                  className={`${inputClasses} pr-14`}
-                />
-                <span className="absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-slate-400">
-                  ETH
-                </span>
-              </div>
-              <span className={hintClasses}>This is the amount you're aiming to raise, in ETH.</span>
+              <textarea
+                id="description"
+                rows={6}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Explain what you're raising money for, why it matters, and how the funds will be used."
+                required
+                className={`${inputClasses} resize-none`}
+              />
             </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Funding"
+            description="Choose how supporters can contribute, and set your goal."
+          >
+            <div className="flex flex-col gap-1.5">
+              <span className={labelClasses}>Accepted currency</span>
+              <div className="grid grid-cols-3 gap-2">
+                {CURRENCY_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setCurrencyMode(option.value)}
+                    className={`cursor-pointer rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
+                      currencyMode === option.value
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-600'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <span className={hintClasses}>
+                Accept ETH only, a specific token only, or let supporters choose either.
+              </span>
+            </div>
+
+            {(currencyMode === 'eth' || currencyMode === 'both') && (
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="target" className={labelClasses}>
+                  ETH funding target
+                </label>
+                <div className="relative">
+                  <input
+                    id="target"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={target}
+                    onChange={(e) => setTarget(e.target.value)}
+                    placeholder="0.00"
+                    required
+                    className={`${inputClasses} pr-14`}
+                  />
+                  <span className="absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-slate-400">
+                    ETH
+                  </span>
+                </div>
+                <span className={hintClasses}>This is the amount you're aiming to raise, in ETH.</span>
+              </div>
+            )}
+
+            {(currencyMode === 'token' || currencyMode === 'both') && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="tokenAddress" className={labelClasses}>
+                    Token
+                  </label>
+                  <select
+                    id="tokenAddress"
+                    value={tokenAddress}
+                    onChange={(e) => setTokenAddress(e.target.value)}
+                    required
+                    className={inputClasses}
+                  >
+                    {supportedTokens.length === 0 && <option value="">No supported tokens available</option>}
+                    {supportedTokens.map((token) => (
+                      <option key={token.address} value={token.address}>
+                        {token.symbol}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="goalToken" className={labelClasses}>
+                    Token funding target
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="goalToken"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={goalToken}
+                      onChange={(e) => setGoalToken(e.target.value)}
+                      placeholder="0.00"
+                      required
+                      className={`${inputClasses} pr-20`}
+                    />
+                    <span className="absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-slate-400">
+                      {selectedToken?.symbol || 'token'}
+                    </span>
+                  </div>
+                  <span className={hintClasses}>
+                    This is the amount you're aiming to raise, in {selectedToken?.symbol || 'the selected token'}.
+                  </span>
+                </div>
+              </>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="durationDays" className={labelClasses}>
@@ -437,21 +596,6 @@ function CreateCampaignPage({ provider, account, onConnectWallet, showToast }) {
                 </span>
               </div>
               <span className={hintClasses}>How many days should this campaign run once published (1-365).</span>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="description" className={labelClasses}>
-                Description
-              </label>
-              <textarea
-                id="description"
-                rows={6}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Explain what you're raising money for, why it matters, and how the funds will be used."
-                required
-                className={`${inputClasses} resize-none`}
-              />
             </div>
           </SectionCard>
 
@@ -555,6 +699,9 @@ function CreateCampaignPage({ provider, account, onConnectWallet, showToast }) {
             durationDays={durationDays}
             fundraisingFor={fundraisingFor}
             coverPhotoPreview={coverPhotoPreview}
+            currencyMode={currencyMode}
+            goalToken={goalToken}
+            tokenSymbol={selectedToken?.symbol}
           />
         </div>
       </form>

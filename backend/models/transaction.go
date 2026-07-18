@@ -23,6 +23,7 @@ type Transaction struct {
 	Type           string    `gorm:"index;not null" json:"type"`
 	Address        string    `gorm:"index;not null" json:"address"`
 	Amount         string    `gorm:"not null;default:0" json:"amount"`
+	TokenAddress   *string   `gorm:"index" json:"tokenAddress"`
 	GasFeeWei      *string   `json:"gasFeeWei"`
 	BlockNumber    uint64    `gorm:"not null" json:"blockNumber"`
 	BlockTimestamp time.Time `json:"blockTimestamp"`
@@ -32,8 +33,9 @@ type Transaction struct {
 }
 
 type ContributorSummary struct {
-	Contributor string `json:"address"`
-	TotalAmount string `json:"amount"`
+	Contributor  string  `json:"address"`
+	TotalAmount  string  `json:"amount"`
+	TokenAddress *string `json:"tokenAddress"`
 }
 
 func SaveTransaction(db *gorm.DB, tx *Transaction) error {
@@ -84,6 +86,11 @@ func GetTransactionsForWallet(db *gorm.DB, address string, offset, limit uint64)
 	return transactions, total, nil
 }
 
+type contributorKey struct {
+	address string
+	token   string
+}
+
 func GetContributorsForCampaign(db *gorm.DB, campaignID uint64) ([]ContributorSummary, error) {
 	var transactions []Transaction
 	if err := db.Where("campaign_id = ? AND type = ?", campaignID, TransactionTypeContribution).
@@ -91,8 +98,11 @@ func GetContributorsForCampaign(db *gorm.DB, campaignID uint64) ([]ContributorSu
 		return nil, err
 	}
 
-	totals := make(map[string]*big.Int)
-	order := make([]string, 0)
+	// Contributions in different currencies (ETH vs. an ERC20 token) are never
+	// summed together — a "Both" mode campaign tracks each currency's totals
+	// independently, so contributor totals must too.
+	totals := make(map[contributorKey]*big.Int)
+	order := make([]contributorKey, 0)
 
 	for _, t := range transactions {
 		amount, ok := new(big.Int).SetString(t.Amount, 10)
@@ -100,18 +110,31 @@ func GetContributorsForCampaign(db *gorm.DB, campaignID uint64) ([]ContributorSu
 			continue
 		}
 
-		if _, exists := totals[t.Address]; !exists {
-			order = append(order, t.Address)
-			totals[t.Address] = big.NewInt(0)
+		tokenKey := ""
+		if t.TokenAddress != nil {
+			tokenKey = strings.ToLower(*t.TokenAddress)
 		}
-		totals[t.Address].Add(totals[t.Address], amount)
+		key := contributorKey{address: t.Address, token: tokenKey}
+
+		if _, exists := totals[key]; !exists {
+			order = append(order, key)
+			totals[key] = big.NewInt(0)
+		}
+		totals[key].Add(totals[key], amount)
 	}
 
 	summaries := make([]ContributorSummary, 0, len(order))
-	for _, address := range order {
+	for _, key := range order {
+		var tokenAddress *string
+		if key.token != "" {
+			token := key.token
+			tokenAddress = &token
+		}
+
 		summaries = append(summaries, ContributorSummary{
-			Contributor: address,
-			TotalAmount: totals[address].String(),
+			Contributor:  key.address,
+			TotalAmount:  totals[key].String(),
+			TokenAddress: tokenAddress,
 		})
 	}
 

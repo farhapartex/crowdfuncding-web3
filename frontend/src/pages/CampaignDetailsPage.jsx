@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth0 } from '@auth0/auth0-react'
-import { parseEther } from 'ethers'
+import { parseEther, parseUnits } from 'ethers'
 import {
   fetchCampaign,
   fetchContributors,
@@ -10,9 +10,10 @@ import {
   postCampaignComment,
   postCommentReply,
 } from '../lib/api'
-import { getCrowdFundingContract } from '../lib/crowdFundingContract'
+import { getCrowdFundingContract, CONTRACT_ADDRESS } from '../lib/crowdFundingContract'
+import { getErc20Contract } from '../lib/erc20Contract'
 import { useAccessToken } from '../hooks/useAccessToken'
-import { shortenAddress, formatEth, formatDate } from '../utils/format'
+import { shortenAddress, formatEth, formatTokenAmount, formatDate } from '../utils/format'
 import { formatCommentTimestamp, groupComments } from '../utils/comments'
 import StatusBadge from '../components/ui/StatusBadge'
 import ContributeForm from '../components/ContributeForm'
@@ -53,8 +54,8 @@ function ShareIcon() {
 }
 
 function computeProgressPercent(amountRaised, goal) {
-  if (goal === '0') return 0
-  const percent = (BigInt(amountRaised) * 10000n) / BigInt(goal)
+  if (!goal || goal === '0') return 0
+  const percent = (BigInt(amountRaised || '0') * 10000n) / BigInt(goal)
   return Math.min(100, Number(percent) / 100)
 }
 
@@ -99,7 +100,7 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
       .catch(() => setOwnerDisplayName(''))
   }, [campaign])
 
-  async function handleContribute(amountEth) {
+  async function handleContribute(amount, currency) {
     setError(null)
     setIsContributing(true)
 
@@ -107,9 +108,24 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
       const signer = await provider.getSigner()
       const crowdFunding = getCrowdFundingContract(signer)
 
-      const amountInWei = parseEther(amountEth)
+      let tx
+      if (currency === 'token') {
+        const owner = await signer.getAddress()
+        const amountInSmallestUnits = parseUnits(amount, campaign.tokenDecimals)
+        const erc20 = getErc20Contract(campaign.tokenAddress, signer)
 
-      const tx = await crowdFunding.contribute(campaign.onChainCampaignId, { value: amountInWei })
+        const allowance = await erc20.allowance(owner, CONTRACT_ADDRESS)
+        if (allowance < amountInSmallestUnits) {
+          const approveTx = await erc20.approve(CONTRACT_ADDRESS, amountInSmallestUnits)
+          await approveTx.wait()
+        }
+
+        tx = await crowdFunding.contributeToken(campaign.onChainCampaignId, amountInSmallestUnits)
+      } else {
+        const amountInWei = parseEther(amount)
+        tx = await crowdFunding.contributeEth(campaign.onChainCampaignId, { value: amountInWei })
+      }
+
       await tx.wait()
 
       const [updatedCampaign, updatedContributors] = await Promise.all([fetchCampaign(id), fetchContributors(id)])
@@ -181,7 +197,9 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
 
   const canContribute = Date.now() / 1000 < Number(campaign.deadline)
   const canInteract = isAuthenticated && !campaign.isArchived
-  const progress = computeProgressPercent(campaign.amountRaised, campaign.goal)
+  const currencyMode = campaign.currencyMode
+  const ethProgress = computeProgressPercent(campaign.amountRaisedEth, campaign.goalEth)
+  const tokenProgress = computeProgressPercent(campaign.amountRaisedToken, campaign.goalToken)
 
   const { rootComments, repliesByParent } = groupComments(comments)
 
@@ -400,12 +418,29 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
         </div>
 
         <div className="flex flex-col gap-4 self-start rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:sticky lg:top-24">
-          <div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full bg-indigo-600" style={{ width: `${progress}%` }} />
-            </div>
-            <p className="mt-3 text-lg font-semibold text-slate-900">{formatEth(campaign.amountRaised)} raised</p>
-            <p className="text-sm text-slate-500">of {formatEth(campaign.goal)} goal</p>
+          <div className="flex flex-col gap-4">
+            {(currencyMode === 'eth' || currencyMode === 'both') && (
+              <div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-indigo-600" style={{ width: `${ethProgress}%` }} />
+                </div>
+                <p className="mt-3 text-lg font-semibold text-slate-900">{formatEth(campaign.amountRaisedEth)} raised</p>
+                <p className="text-sm text-slate-500">of {formatEth(campaign.goalEth)} goal</p>
+              </div>
+            )}
+            {(currencyMode === 'token' || currencyMode === 'both') && (
+              <div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full bg-indigo-600" style={{ width: `${tokenProgress}%` }} />
+                </div>
+                <p className="mt-3 text-lg font-semibold text-slate-900">
+                  {formatTokenAmount(campaign.amountRaisedToken, campaign.tokenDecimals, campaign.tokenSymbol)} raised
+                </p>
+                <p className="text-sm text-slate-500">
+                  of {formatTokenAmount(campaign.goalToken, campaign.tokenDecimals, campaign.tokenSymbol)} goal
+                </p>
+              </div>
+            )}
           </div>
 
           <Button variant="secondary" onClick={() => setShowShareModal(true)} className="justify-center gap-1.5">
@@ -426,7 +461,12 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
             {canInteract &&
               (canContribute ? (
                 account ? (
-                  <ContributeForm onContribute={handleContribute} isContributing={isContributing} />
+                  <ContributeForm
+                    currencyMode={currencyMode}
+                    tokenSymbol={campaign.tokenSymbol}
+                    onContribute={handleContribute}
+                    isContributing={isContributing}
+                  />
                 ) : (
                   <Button onClick={onConnectWallet}>Connect Wallet to Contribute</Button>
                 )
@@ -447,7 +487,11 @@ function CampaignDetailsPage({ provider, account, onConnectWallet, setError, sho
                     <span className="truncate text-sm text-slate-700">
                       {contributor.displayName || shortenAddress(contributor.address)}
                     </span>
-                    <span className="shrink-0 text-sm text-slate-500">{formatEth(contributor.amount)}</span>
+                    <span className="shrink-0 text-sm text-slate-500">
+                      {contributor.tokenAddress
+                        ? formatTokenAmount(contributor.amount, campaign.tokenDecimals, campaign.tokenSymbol)
+                        : formatEth(contributor.amount)}
+                    </span>
                   </div>
                 </div>
               ))}
